@@ -56,15 +56,15 @@ export default function Home() {
   };
 
   const getBookingCount = (locId: string) =>
-    bookings.filter(b => b.locationId === locId && b.status === 'CONFIRMED').length;
+    (bookings || []).filter(b => b.locationId === locId && b.status === 'CONFIRMED').length;
 
-  const popularLocations = [...locations]
+  const popularLocations = [...(locations || [])]
     .sort((a, b) => getBookingCount(b.id) - getBookingCount(a.id) || b.rating - a.rating)
     .slice(0, 3);
 
   const filterTypeValue = TYPE_FILTER_MAP[activeFilter];
 
-  const filteredLocations = locations.filter(loc => {
+  const filteredLocations = (locations || []).filter(loc => {
     const matchType = filterTypeValue === null || loc.type === filterTypeValue;
     const matchSearch = loc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       loc.type.toLowerCase().includes(searchQuery.toLowerCase());
@@ -72,8 +72,8 @@ export default function Home() {
     return matchType && matchSearch && matchPrice;
   });
 
-  const recentlyViewedLocations = recentlyViewed
-    .map(id => locations.find(l => l.id === id))
+  const recentlyViewedLocations = (recentlyViewed || [])
+    .map(id => (locations || []).find(l => l.id === id))
     .filter(Boolean)
     .slice(0, 4) as typeof locations;
 
@@ -98,7 +98,7 @@ export default function Home() {
         </div>
         <div className="glass-panel px-6 py-3 flex items-center gap-4 w-fit">
           <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse shadow-[0_0_10px_rgba(249,115,22,0.8)]" />
-          <span className="text-sm font-medium text-white">{locations.length} мест доступно</span>
+          <span className="text-sm font-medium text-white">{(locations || []).length} мест доступно</span>
         </div>
       </motion.header>
 
@@ -161,7 +161,7 @@ export default function Home() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {popularLocations.map((loc, idx) => {
-              const isFav = favorites.includes(loc.id);
+              const isFav = (favorites || []).includes(loc.id);
               return (
                 <Link href={`/location/${loc.id}`} key={loc.id}>
                   <motion.div
@@ -252,7 +252,7 @@ export default function Home() {
             className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
           >
             {filteredLocations.map((loc, idx) => {
-              const isFav = favorites.includes(loc.id);
+              const isFav = (favorites || []).includes(loc.id);
               return (
                 <Link href={`/location/${loc.id}`} key={loc.id}>
                   <motion.div

@@ -88,7 +88,7 @@ export function CommandMenu() {
             )}
 
             <Command.Group heading="Места" className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-3 py-2 mt-2">
-              {locations.map(loc => (
+              {(locations || []).map(loc => (
                 <Command.Item 
                   key={loc.id}
                   onSelect={() => runCommand(() => router.push(`/location/${loc.id}`))}

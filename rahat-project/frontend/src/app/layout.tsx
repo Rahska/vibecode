@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeContextProvider } from "@/components/theme-context";
 import { Toaster } from "sonner";
 import { Sidebar } from "@/components/sidebar";
 import { MobileNav } from "@/components/mobile-nav";
@@ -26,7 +26,7 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${outfit.variable} font-sans antialiased bg-zinc-950 text-slate-200 selection:bg-orange-500/30`}
       >
-        <ThemeProvider>
+        <ThemeContextProvider>
           <div className="min-h-screen flex w-full relative overflow-hidden">
             {/* Decorative Blur Orbs */}
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-orange-500/5 blur-[120px] pointer-events-none" />
@@ -42,7 +42,7 @@ export default function RootLayout({
           </div>
           <CommandMenu />
           <Toaster theme="dark" position="top-right" closeButton richColors />
-        </ThemeProvider>
+        </ThemeContextProvider>
       </body>
     </html>
   );
