@@ -6,17 +6,18 @@ import { usePathname } from "next/navigation";
 import { useRahatStore } from "@/lib/store";
 
 const NAV_ITEMS = [
-  { icon: Compass, label: "Explore", href: "/" },
-  { icon: Heart, label: "Favs", href: "/favorites" },
-  { icon: MapIcon, label: "Map", href: "/map" },
-  { icon: CalendarDays, label: "Bookings", href: "/bookings" },
-  { icon: User, label: "Profile", href: "/profile" },
+  { icon: Compass, label: "Обзор", href: "/" },
+  { icon: Heart, label: "Избранное", href: "/favorites" },
+  { icon: MapIcon, label: "Карта", href: "/map" },
+  { icon: CalendarDays, label: "Брони", href: "/bookings" },
+  { icon: User, label: "Профиль", href: "/profile" },
   { icon: LayoutDashboard, label: "Admin", href: "/dashboard" },
 ];
 
 export function MobileNav() {
   const pathname = usePathname();
-  const { notifications } = useRahatStore();
+  const { bookings, notifications } = useRahatStore();
+  const activeBookingsCount = bookings.filter(b => b.status === 'CONFIRMED').length;
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   return (
@@ -25,19 +26,27 @@ export function MobileNav() {
         {NAV_ITEMS.map((item, idx) => {
           const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
           return (
-            <Link 
+            <Link
               key={idx}
               href={item.href}
               className={`relative flex flex-col items-center justify-center min-w-[48px] px-1 h-12 rounded-xl transition-all duration-300 ${
-                isActive 
-                  ? "text-cyan-400 bg-cyan-500/10" 
+                isActive
+                  ? "text-cyan-400 bg-cyan-500/10"
                   : "text-slate-500 hover:text-white"
               }`}
             >
               <item.icon className={`w-5 h-5 mb-1 ${isActive ? 'scale-110' : ''} transition-transform`} />
               <span className="text-[9px] font-medium tracking-tight">{item.label}</span>
-              
-              {item.label === "Profile" && unreadCount > 0 && (
+
+              {/* Активные брони badge */}
+              {item.label === "Брони" && activeBookingsCount > 0 && (
+                <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-cyan-500 flex items-center justify-center">
+                  <span className="text-[8px] font-bold text-black">{activeBookingsCount}</span>
+                </div>
+              )}
+
+              {/* Уведомления на профиле */}
+              {item.label === "Профиль" && unreadCount > 0 && (
                 <div className="absolute top-1 right-2 w-2 h-2 rounded-full bg-cyan-500 animate-pulse shadow-[0_0_10px_rgba(6,182,212,0.8)]" />
               )}
             </Link>

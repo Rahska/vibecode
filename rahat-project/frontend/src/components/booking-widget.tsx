@@ -2,66 +2,69 @@
 
 import { useState, useEffect } from "react";
 import { format, addDays, isSameDay } from "date-fns";
+import { ru } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRahatStore, Booking } from "@/lib/store";
 import { toast } from "sonner";
-import { CheckCircle2, Clock, ShieldAlert, AlertCircle } from "lucide-react";
+import { CheckCircle2, Clock, ShieldAlert, AlertCircle, MessageCircle } from "lucide-react";
+
+const WHATSAPP_NUMBER = "77001234567"; // Замените на ваш номер
 
 interface BookingWidgetProps {
   locationId: string;
   pricePerHour: number;
+  locationName?: string;
 }
 
-export function BookingWidget({ locationId, pricePerHour }: BookingWidgetProps) {
+export function BookingWidget({ locationId, pricePerHour, locationName }: BookingWidgetProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedSlots, setSelectedSlots] = useState<number[]>([]);
   const [showSuccess, setShowSuccess] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
-  
+
   const bookings = useRahatStore(state => state.bookings);
   const addBooking = useRahatStore(state => state.addBooking);
 
   // Generate next 14 days
   const dates = Array.from({ length: 14 }).map((_, i) => addDays(new Date(), i));
-  
+
   // Generate hours from 10 to 23
   const hours = Array.from({ length: 14 }).map((_, i) => i + 10);
 
   const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
   const todaysBookings = bookings.filter(b => b.locationId === locationId && b.date === selectedDateStr && b.status === 'CONFIRMED');
-  
+
   const isHourBooked = (hour: number) => {
     return todaysBookings.some(b => hour >= b.startHour && hour < b.endHour);
   };
 
-  // Timer Effect
+  // Timer Effect — ИСПРАВЛЕН: правильная зависимость
   useEffect(() => {
     if (selectedSlots.length > 0 && timeLeft === null) {
-      setTimeLeft(600); // 10 minutes
+      setTimeLeft(600); // 10 минут
     }
-    
     if (selectedSlots.length === 0) {
       setTimeLeft(null);
     }
   }, [selectedSlots.length]);
 
   useEffect(() => {
-    if (timeLeft === null || timeLeft === 0) return;
-    
+    if (timeLeft === null || timeLeft <= 0) return;
+
     const timer = setInterval(() => {
       setTimeLeft(t => {
         if (t && t <= 1) {
           clearInterval(timer);
           setSelectedSlots([]);
-          toast.error("Booking session expired. Please select slots again.");
+          toast.error("Время сессии истекло. Выберите слоты снова.");
           return 0;
         }
         return t ? t - 1 : 0;
       });
     }, 1000);
-    
+
     return () => clearInterval(timer);
-  }, [timeLeft === null]);
+  }, [timeLeft]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -71,11 +74,11 @@ export function BookingWidget({ locationId, pricePerHour }: BookingWidgetProps) 
 
   const toggleSlot = (hour: number) => {
     if (isHourBooked(hour)) return;
-    
+
     if (selectedSlots.includes(hour)) {
-      setSelectedSlots(selectedSlots.filter(h => h !== hour).sort((a,b)=>a-b));
+      setSelectedSlots(selectedSlots.filter(h => h !== hour).sort((a, b) => a - b));
     } else {
-      setSelectedSlots([...selectedSlots, hour].sort((a,b)=>a-b));
+      setSelectedSlots([...selectedSlots, hour].sort((a, b) => a - b));
     }
   };
 
@@ -89,15 +92,15 @@ export function BookingWidget({ locationId, pricePerHour }: BookingWidgetProps) 
 
   const handleBook = () => {
     if (selectedSlots.length === 0) return;
-    
+
     if (!isContiguous()) {
-      toast.error("Please select contiguous time slots for a single booking.");
+      toast.error("Выберите непрерывные временные слоты для одной брони.");
       return;
     }
-    
+
     const startHour = Math.min(...selectedSlots);
     const endHour = Math.max(...selectedSlots) + 1;
-    
+
     const newBooking: Booking = {
       id: Math.random().toString(36).substr(2, 9),
       locationId,
@@ -108,23 +111,44 @@ export function BookingWidget({ locationId, pricePerHour }: BookingWidgetProps) 
       status: 'CONFIRMED',
       createdAt: Date.now()
     };
-    
+
     addBooking(newBooking);
     setSelectedSlots([]);
     setTimeLeft(null);
     setShowSuccess(true);
-    toast.success("Successfully booked!");
-    
+    toast.success("Бронь успешно подтверждена!");
+
     setTimeout(() => {
       setShowSuccess(false);
-    }, 3000);
+    }, 4000);
+  };
+
+  const handleWhatsApp = () => {
+    const dateFormatted = format(selectedDate, 'd MMMM yyyy', { locale: ru });
+    const timeText = selectedSlots.length > 0
+      ? `${Math.min(...selectedSlots)}:00 - ${Math.max(...selectedSlots) + 1}:00`
+      : 'время не выбрано';
+    const total = selectedSlots.length > 0
+      ? `₸${(selectedSlots.length * pricePerHour).toLocaleString()}`
+      : '';
+
+    const message = encodeURIComponent(
+      `Здравствуйте! Хочу забронировать место.\n\n` +
+      `📍 Место: ${locationName || 'RAHAT'}\n` +
+      `📅 Дата: ${dateFormatted}\n` +
+      `⏰ Время: ${timeText}\n` +
+      (total ? `💰 Сумма: ${total}\n` : '') +
+      `\nПожалуйста, подтвердите бронирование.`
+    );
+
+    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, '_blank');
   };
 
   return (
     <div className="glass-panel p-6 relative overflow-hidden">
       <AnimatePresence>
         {showSuccess && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
@@ -133,17 +157,17 @@ export function BookingWidget({ locationId, pricePerHour }: BookingWidgetProps) 
             <div className="w-20 h-20 rounded-full bg-cyan-500/20 flex items-center justify-center mb-4 shadow-[0_0_40px_rgba(6,182,212,0.5)]">
               <CheckCircle2 className="w-10 h-10 text-cyan-400" />
             </div>
-            <h3 className="text-2xl font-semibold text-white mb-2">Booking Confirmed!</h3>
-            <p className="text-slate-400 text-center px-4">Your premium spot is reserved. Check your bookings tab.</p>
+            <h3 className="text-2xl font-semibold text-white mb-2">Бронь подтверждена!</h3>
+            <p className="text-slate-400 text-center px-4">Ваше место зарезервировано. Смотрите в разделе «Брони».</p>
           </motion.div>
         )}
       </AnimatePresence>
 
       <div className="flex justify-between items-center mb-6">
-        <h3 className="text-xl font-semibold text-white">Select Date & Time</h3>
+        <h3 className="text-xl font-semibold text-white">Выберите дату и время</h3>
         <AnimatePresence>
           {timeLeft !== null && timeLeft > 0 && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
@@ -155,9 +179,9 @@ export function BookingWidget({ locationId, pricePerHour }: BookingWidgetProps) 
           )}
         </AnimatePresence>
       </div>
-      
-      {/* Date Picker (Horizontal) */}
-      <div className="flex gap-2 overflow-x-auto pb-4 mb-4" style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
+
+      {/* Выбор даты */}
+      <div className="flex gap-2 overflow-x-auto pb-4 mb-4" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         {dates.map((date, i) => {
           const isSelected = isSameDay(date, selectedDate);
           return (
@@ -165,32 +189,32 @@ export function BookingWidget({ locationId, pricePerHour }: BookingWidgetProps) 
               key={i}
               onClick={() => { setSelectedDate(date); setSelectedSlots([]); }}
               className={`flex-shrink-0 w-16 h-20 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-300 ${
-                isSelected 
-                  ? "bg-cyan-500/20 border-cyan-500/50 border text-white shadow-[0_0_15px_rgba(6,182,212,0.2)]" 
+                isSelected
+                  ? "bg-cyan-500/20 border-cyan-500/50 border text-white shadow-[0_0_15px_rgba(6,182,212,0.2)]"
                   : "bg-white/5 border border-white/5 text-slate-400 hover:bg-white/10"
               }`}
             >
-              <span className="text-xs font-medium uppercase">{format(date, 'EEE')}</span>
+              <span className="text-xs font-medium uppercase">{format(date, 'EEE', { locale: ru })}</span>
               <span className="text-lg font-bold">{format(date, 'd')}</span>
             </button>
-          )
+          );
         })}
       </div>
 
-      {/* Time Slots */}
+      {/* Временные слоты */}
       <div className="grid grid-cols-3 md:grid-cols-4 gap-3 mb-6">
         {hours.map(hour => {
           const booked = isHourBooked(hour);
           const selected = selectedSlots.includes(hour);
-          
+
           return (
             <button
               key={hour}
               disabled={booked}
               onClick={() => toggleSlot(hour)}
               className={`py-3 rounded-xl text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2 relative overflow-hidden ${
-                booked 
-                  ? "bg-red-500/10 border border-red-500/20 text-red-400/50 cursor-not-allowed" 
+                booked
+                  ? "bg-red-500/10 border border-red-500/20 text-red-400/50 cursor-not-allowed"
                   : selected
                     ? "bg-cyan-500 text-black shadow-[0_0_15px_rgba(6,182,212,0.4)] scale-[0.98]"
                     : "bg-white/5 border border-white/5 hover:border-white/20 hover:bg-white/10 text-slate-300 active:scale-95"
@@ -202,20 +226,20 @@ export function BookingWidget({ locationId, pricePerHour }: BookingWidgetProps) 
               {!booked && !selected && <div className="w-1.5 h-1.5 rounded-full bg-green-500" />}
               {hour}:00
             </button>
-          )
+          );
         })}
       </div>
 
       <AnimatePresence>
         {!isContiguous() && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             className="mb-6 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3"
           >
-            <AlertCircle className="w-5 h-5 text-red-400 mt-0.5" />
-            <p className="text-sm text-red-400">Please select contiguous time slots. Multiple separate bookings must be made individually.</p>
+            <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-red-400">Выберите непрерывные временные слоты. Несмежные брони оформляются отдельно.</p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -223,52 +247,62 @@ export function BookingWidget({ locationId, pricePerHour }: BookingWidgetProps) 
       <div className="border-t border-white/10 pt-6">
         <div className="flex flex-col gap-3 mb-6">
           <div className="flex justify-between items-center text-slate-400 text-sm">
-            <span>Price per hour</span>
-            <span className="font-medium text-white">${pricePerHour}</span>
+            <span>Цена за час</span>
+            <span className="font-medium text-white">₸{pricePerHour.toLocaleString()}</span>
           </div>
-          
+
           <div className="flex justify-between items-start text-slate-400 text-sm">
-            <span>Selected slots ({selectedSlots.length})</span>
+            <span>Выбрано слотов ({selectedSlots.length})</span>
             <div className="text-right max-w-[60%]">
               {selectedSlots.length > 0 ? (
                 <span className="text-cyan-400 font-medium">
                   {selectedSlots.map(h => `${h}:00`).join(', ')}
                 </span>
               ) : (
-                <span className="italic">None</span>
+                <span className="italic">Не выбрано</span>
               )}
             </div>
           </div>
-          
+
           <div className="w-full h-px bg-white/10 my-2" />
-          
+
           <div className="flex justify-between items-center">
-            <span className="text-slate-300 font-semibold">Total Price</span>
-            <motion.span 
+            <span className="text-slate-300 font-semibold">Итого</span>
+            <motion.span
               key={selectedSlots.length}
               initial={{ scale: 1.2, color: '#06b6d4' }}
               animate={{ scale: 1, color: '#ffffff' }}
               className="text-3xl font-bold"
             >
-              ${selectedSlots.length * pricePerHour}
+              ₸{(selectedSlots.length * pricePerHour).toLocaleString()}
             </motion.span>
           </div>
         </div>
-        
-        <button 
-          onClick={handleBook}
-          disabled={selectedSlots.length === 0 || !isContiguous()}
-          className={`w-full h-14 rounded-xl font-semibold text-lg transition-all duration-300 relative overflow-hidden group ${
-            selectedSlots.length > 0 && isContiguous()
-              ? "bg-white text-black hover:bg-slate-200 shadow-[0_0_30px_rgba(255,255,255,0.2)]"
-              : "bg-white/5 text-slate-500 cursor-not-allowed"
-          }`}
-        >
-          {selectedSlots.length > 0 && isContiguous() && (
-            <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
-          )}
-          Confirm Booking
-        </button>
+
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={handleBook}
+            disabled={selectedSlots.length === 0 || !isContiguous()}
+            className={`w-full h-14 rounded-xl font-semibold text-lg transition-all duration-300 relative overflow-hidden group ${
+              selectedSlots.length > 0 && isContiguous()
+                ? "bg-white text-black hover:bg-slate-200 shadow-[0_0_30px_rgba(255,255,255,0.2)]"
+                : "bg-white/5 text-slate-500 cursor-not-allowed"
+            }`}
+          >
+            {selectedSlots.length > 0 && isContiguous() && (
+              <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
+            )}
+            Подтвердить бронь
+          </button>
+
+          <button
+            onClick={handleWhatsApp}
+            className="w-full h-12 rounded-xl font-semibold text-sm transition-all duration-300 bg-green-600 hover:bg-green-500 text-white flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(22,163,74,0.3)]"
+          >
+            <MessageCircle className="w-5 h-5" />
+            Написать администратору
+          </button>
+        </div>
       </div>
     </div>
   );
