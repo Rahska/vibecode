@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Compass, Star, Users, Heart, Flame, Clock } from "lucide-react";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRahatStore } from "@/lib/store";
+import { useOrbitaStore } from "@/lib/store";
 import { toast } from "sonner";
 import { PageSkeleton } from "@/components/page-skeleton";
 
@@ -37,7 +37,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [maxPrice, setMaxPrice] = useState(50000);
 
-  const { locations, favorites, toggleFavorite, bookings, recentlyViewed } = useRahatStore();
+  const { locations, favorites, toggleFavorite, bookings, recentlyViewed, settings } = useOrbitaStore();
 
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 800);
@@ -92,12 +92,12 @@ export default function Home() {
       >
         <div>
           <h1 className="text-4xl lg:text-5xl font-semibold mb-2 text-white">
-            Исследуйте, <span className="bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500">Открывайте</span>
+            Исследуйте, <span className="bg-clip-text text-transparent bg-gradient-to-r from-orange-400 to-rose-500">Открывайте</span>
           </h1>
           <p className="text-slate-400 text-lg">Найдите идеальное место для отдыха.</p>
         </div>
         <div className="glass-panel px-6 py-3 flex items-center gap-4 w-fit">
-          <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_10px_rgba(6,182,212,0.8)]" />
+          <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse shadow-[0_0_10px_rgba(249,115,22,0.8)]" />
           <span className="text-sm font-medium text-white">{locations.length} мест доступно</span>
         </div>
       </motion.header>
@@ -117,14 +117,14 @@ export default function Home() {
         />
         <div className="w-full md:w-px h-px md:h-10 bg-white/10" />
         <div className="flex items-center gap-3 px-4 py-2 w-full md:w-auto">
-          <span className="text-xs text-slate-400 whitespace-nowrap">Макс: ₸{maxPrice.toLocaleString()}</span>
+          <span className="text-xs text-slate-400 whitespace-nowrap">Макс: {settings.currency}{maxPrice.toLocaleString()}</span>
           <input
             type="range" min={5000} max={50000} step={1000} value={maxPrice}
             onChange={(e) => setMaxPrice(Number(e.target.value))}
             className="w-full md:w-32 accent-cyan-500 cursor-pointer"
           />
         </div>
-        <button className="w-full md:w-auto h-14 px-8 rounded-[1.25rem] bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold flex justify-center items-center gap-2 hover:shadow-[0_0_30px_rgba(6,182,212,0.4)] transition-all duration-300">
+        <button className="w-full md:w-auto h-14 px-8 rounded-[1.25rem] bg-gradient-to-r from-orange-500 to-rose-600 text-white font-semibold flex justify-center items-center gap-2 hover:shadow-[0_0_30px_rgba(249,115,22,0.4)] transition-all duration-300">
           <Compass className="w-5 h-5" />
           Найти
         </button>
@@ -133,14 +133,14 @@ export default function Home() {
       {/* Фильтры */}
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
-        className="flex gap-2 mb-10 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}
+        className="flex gap-2 mb-10 overflow-x-auto pb-2 hide-scrollbar"
       >
         {TYPES.map(type => (
           <button
             key={type}
             onClick={() => setActiveFilter(type)}
             className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-300 border ${activeFilter === type
-              ? 'bg-cyan-500 text-black border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.4)]'
+              ? 'bg-orange-500 text-black border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.4)]'
               : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10 hover:text-white'
               }`}
           >
@@ -182,7 +182,7 @@ export default function Home() {
                     <div className="absolute bottom-0 left-0 right-0 p-4">
                       <p className="font-bold text-white text-lg">{loc.name}</p>
                       <div className="flex justify-between items-center">
-                        <span className="text-slate-300 text-sm">₸{loc.pricePerHour.toLocaleString()}/ч</span>
+                        <span className="text-slate-300 text-sm">{settings.currency}{loc.pricePerHour.toLocaleString()}/ч</span>
                         <span className="text-yellow-400 text-sm">★ {loc.rating}</span>
                       </div>
                     </div>
@@ -204,7 +204,7 @@ export default function Home() {
             <Clock className="w-5 h-5 text-slate-400" />
             <h2 className="text-2xl font-semibold text-white">Недавно просмотрено</h2>
           </div>
-          <div className="flex gap-4 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+          <div className="flex gap-4 overflow-x-auto pb-2 hide-scrollbar">
             {recentlyViewedLocations.map((loc) => (
               <Link href={`/location/${loc.id}`} key={loc.id} className="flex-shrink-0">
                 <div className="w-52 glass-card p-2 group cursor-pointer">
@@ -213,7 +213,7 @@ export default function Home() {
                   </div>
                   <div className="px-1 pb-1">
                     <p className="text-white font-semibold text-sm truncate">{loc.name}</p>
-                    <p className="text-slate-400 text-xs">₸{loc.pricePerHour.toLocaleString()}/ч</p>
+                    <p className="text-slate-400 text-xs">{settings.currency}{loc.pricePerHour.toLocaleString()}/ч</p>
                   </div>
                 </div>
               </Link>
@@ -288,13 +288,13 @@ export default function Home() {
                       )}
                     </div>
                     <div className="px-2 pb-2">
-                      <div className="text-cyan-400 text-xs font-semibold uppercase tracking-wider mb-1">
+                      <div className="text-orange-400 text-xs font-semibold uppercase tracking-wider mb-1">
                         {TYPE_LABELS[loc.type] || loc.type}
                       </div>
                       <div className="flex justify-between items-start mb-2">
                         <h3 className="text-xl font-semibold text-white truncate pr-2">{loc.name}</h3>
                         <div className="text-right whitespace-nowrap">
-                          <span className="text-lg font-bold text-white">₸{loc.pricePerHour.toLocaleString()}</span>
+                          <span className="text-lg font-bold text-white">{settings.currency}{loc.pricePerHour.toLocaleString()}</span>
                           <span className="text-xs text-slate-400">/ч</span>
                         </div>
                       </div>

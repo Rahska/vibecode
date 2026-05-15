@@ -1,308 +1,285 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { format, addDays, isSameDay } from "date-fns";
-import { ru } from "date-fns/locale";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useRahatStore, Booking } from "@/lib/store";
+import { 
+  Calendar as CalendarIcon, 
+  Clock, 
+  Users, 
+  MessageCircle, 
+  ChevronLeft, 
+  ChevronRight, 
+  Info,
+  CheckCircle2
+} from "lucide-react";
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isBefore, startOfToday, addDays } from "date-fns";
+import { ru } from "date-fns/locale";
+import { useOrbitaStore } from "@/lib/store";
 import { toast } from "sonner";
-import { CheckCircle2, Clock, ShieldAlert, AlertCircle, MessageCircle } from "lucide-react";
-
-const WHATSAPP_NUMBER = "77001234567"; // Замените на ваш номер
 
 interface BookingWidgetProps {
   locationId: string;
   pricePerHour: number;
-  locationName?: string;
+  locationName: string;
 }
 
 export function BookingWidget({ locationId, pricePerHour, locationName }: BookingWidgetProps) {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const { settings, addBooking } = useOrbitaStore();
+  
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSlots, setSelectedSlots] = useState<number[]>([]);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [step, setStep] = useState<1 | 2>(1);
 
-  const bookings = useRahatStore(state => state.bookings);
-  const addBooking = useRahatStore(state => state.addBooking);
+  const today = startOfToday();
+  const daysInMonth = eachDayOfInterval({
+    start: startOfMonth(currentMonth),
+    end: endOfMonth(currentMonth),
+  });
 
-  // Generate next 14 days
-  const dates = Array.from({ length: 14 }).map((_, i) => addDays(new Date(), i));
+  const slots = Array.from({ length: 14 }, (_, i) => i + 9); // 09:00 - 22:00
 
-  // Generate hours from 10 to 23
-  const hours = Array.from({ length: 14 }).map((_, i) => i + 10);
-
-  const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
-  const todaysBookings = bookings.filter(b => b.locationId === locationId && b.date === selectedDateStr && b.status === 'CONFIRMED');
-
-  const isHourBooked = (hour: number) => {
-    return todaysBookings.some(b => hour >= b.startHour && hour < b.endHour);
-  };
-
-  // Timer Effect — ИСПРАВЛЕН: правильная зависимость
-  useEffect(() => {
-    if (selectedSlots.length > 0 && timeLeft === null) {
-      setTimeLeft(600); // 10 минут
-    }
-    if (selectedSlots.length === 0) {
-      setTimeLeft(null);
-    }
-  }, [selectedSlots.length]);
-
-  useEffect(() => {
-    if (timeLeft === null || timeLeft <= 0) return;
-
-    const timer = setInterval(() => {
-      setTimeLeft(t => {
-        if (t && t <= 1) {
-          clearInterval(timer);
-          setSelectedSlots([]);
-          toast.error("Время сессии истекло. Выберите слоты снова.");
-          return 0;
-        }
-        return t ? t - 1 : 0;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [timeLeft]);
-
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s < 10 ? '0' : ''}${s}`;
-  };
-
-  const toggleSlot = (hour: number) => {
-    if (isHourBooked(hour)) return;
-
+  const handleSlotClick = (hour: number) => {
     if (selectedSlots.includes(hour)) {
-      setSelectedSlots(selectedSlots.filter(h => h !== hour).sort((a, b) => a - b));
+      setSelectedSlots(selectedSlots.filter(s => s !== hour));
     } else {
       setSelectedSlots([...selectedSlots, hour].sort((a, b) => a - b));
     }
   };
 
-  const isContiguous = () => {
-    if (selectedSlots.length <= 1) return true;
-    return selectedSlots.every((slot, index) => {
-      if (index === 0) return true;
-      return slot === selectedSlots[index - 1] + 1;
-    });
+  const isContiguous = (slots: number[]) => {
+    if (slots.length <= 1) return true;
+    for (let i = 0; i < slots.length - 1; i++) {
+      if (slots[i+1] - slots[i] !== 1) return false;
+    }
+    return true;
   };
 
-  const handleBook = () => {
-    if (selectedSlots.length === 0) return;
+  const totalPrice = selectedSlots.length * pricePerHour;
 
-    if (!isContiguous()) {
-      toast.error("Выберите непрерывные временные слоты для одной брони.");
+  const handleWhatsApp = () => {
+    if (!selectedDate || selectedSlots.length === 0) {
+      toast.error("Выберите дату и время");
       return;
     }
 
-    const startHour = Math.min(...selectedSlots);
-    const endHour = Math.max(...selectedSlots) + 1;
+    if (!isContiguous(selectedSlots)) {
+      toast.error("Пожалуйста, выбирайте идущие подряд часы");
+      return;
+    }
 
-    const newBooking: Booking = {
-      id: Math.random().toString(36).substr(2, 9),
-      locationId,
-      date: selectedDateStr,
-      startHour,
-      endHour,
-      totalPrice: selectedSlots.length * pricePerHour,
-      status: 'CONFIRMED',
-      createdAt: Date.now()
-    };
-
-    addBooking(newBooking);
-    setSelectedSlots([]);
-    setTimeLeft(null);
-    setShowSuccess(true);
-    toast.success("Бронь успешно подтверждена!");
-
-    setTimeout(() => {
-      setShowSuccess(false);
-    }, 4000);
-  };
-
-  const handleWhatsApp = () => {
-    const dateFormatted = format(selectedDate, 'd MMMM yyyy', { locale: ru });
-    const timeText = selectedSlots.length > 0
-      ? `${Math.min(...selectedSlots)}:00 - ${Math.max(...selectedSlots) + 1}:00`
-      : 'время не выбрано';
-    const total = selectedSlots.length > 0
-      ? `₸${(selectedSlots.length * pricePerHour).toLocaleString()}`
-      : '';
-
+    const timeString = `${selectedSlots[0]}:00 - ${selectedSlots[selectedSlots.length - 1] + 1}:00`;
+    const dateString = format(selectedDate, 'dd MMMM yyyy', { locale: ru });
+    
     const message = encodeURIComponent(
-      `Здравствуйте! Хочу забронировать место.\n\n` +
-      `📍 Место: ${locationName || 'RAHAT'}\n` +
-      `📅 Дата: ${dateFormatted}\n` +
-      `⏰ Время: ${timeText}\n` +
-      (total ? `💰 Сумма: ${total}\n` : '') +
-      `\nПожалуйста, подтвердите бронирование.`
+      `${settings.whatsappMessage}\n\n` +
+      `📍 Место: ${locationName || 'ORBITA'}\n` +
+      `📅 Дата: ${dateString}\n` +
+      `⏰ Время: ${timeString} (${selectedSlots.length} ч.)\n` +
+      `💰 Итого: ${settings.currency}${totalPrice.toLocaleString()}\n\n` +
+      `Меня зовут: ${customerName}\n` +
+      `Тел: ${customerPhone}`
     );
 
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, '_blank');
+    // Save to local bookings store for history
+    addBooking({
+      id: Math.random().toString(36).substr(2, 9),
+      locationId,
+      date: format(selectedDate, 'yyyy-MM-DD'),
+      startHour: selectedSlots[0],
+      endHour: selectedSlots[selectedSlots.length - 1] + 1,
+      totalPrice,
+      status: 'PENDING',
+      createdAt: Date.now(),
+      customerName,
+      customerPhone
+    });
+
+    window.open(`https://wa.me/${settings.whatsappNumber}?text=${message}`, '_blank');
+    toast.success("Запрос отправлен в WhatsApp!");
   };
 
   return (
-    <div className="glass-panel p-6 relative overflow-hidden">
-      <AnimatePresence>
-        {showSuccess && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 z-20 bg-[#0A0A0A]/95 backdrop-blur-md flex flex-col items-center justify-center"
-          >
-            <div className="w-20 h-20 rounded-full bg-cyan-500/20 flex items-center justify-center mb-4 shadow-[0_0_40px_rgba(6,182,212,0.5)]">
-              <CheckCircle2 className="w-10 h-10 text-cyan-400" />
-            </div>
-            <h3 className="text-2xl font-semibold text-white mb-2">Бронь подтверждена!</h3>
-            <p className="text-slate-400 text-center px-4">Ваше место зарезервировано. Смотрите в разделе «Брони».</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+    <div className="glass-panel border-white/5 overflow-hidden shadow-2xl bg-[#111827]/50">
+      <div className="p-8 border-b border-white/5 bg-white/5">
+        <div className="flex justify-between items-center mb-1">
+          <span className="text-slate-400 text-sm font-bold uppercase tracking-widest">Цена за час</span>
+          <span className="text-white text-3xl font-black">{settings.currency}{pricePerHour.toLocaleString()}</span>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-emerald-400 font-bold">
+          <CheckCircle2 className="w-3.5 h-3.5" /> Доступно сегодня
+        </div>
+      </div>
 
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="text-xl font-semibold text-white">Выберите дату и время</h3>
-        <AnimatePresence>
-          {timeLeft !== null && timeLeft > 0 && (
+      <div className="p-8">
+        <AnimatePresence mode="wait">
+          {step === 1 ? (
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
+              key="step1"
+              initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
-              className={`px-3 py-1.5 border rounded-full flex items-center gap-2 ${timeLeft < 60 ? 'bg-red-500/10 border-red-500/20 text-red-400 animate-pulse' : 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400'}`}
+              className="space-y-8"
             >
-              <Clock className="w-4 h-4" />
-              <span className="text-sm font-semibold">{formatTime(timeLeft)}</span>
+              {/* Календарь */}
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h4 className="text-white font-bold text-lg flex items-center gap-2">
+                    <CalendarIcon className="w-5 h-5 text-orange-500" /> Выберите дату
+                  </h4>
+                  <div className="flex gap-1">
+                    <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-2 rounded-lg hover:bg-white/5 text-slate-400 transition-colors">
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="p-2 rounded-lg hover:bg-white/5 text-slate-400 transition-colors">
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-7 gap-2 mb-4">
+                  {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(d => (
+                    <div key={d} className="text-center text-[10px] font-bold text-slate-600 uppercase tracking-widest">{d}</div>
+                  ))}
+                </div>
+
+                <div className="flex gap-2 overflow-x-auto pb-4 hide-scrollbar snap-x snap-mandatory">
+                  {daysInMonth.map((day, i) => {
+                    const isSelected = selectedDate && isSameDay(day, selectedDate);
+                    const isDisabled = isBefore(day, today);
+                    return (
+                      <button
+                        key={i}
+                        disabled={isDisabled}
+                        onClick={() => setSelectedDate(day)}
+                        className={`flex-shrink-0 w-14 h-20 rounded-2xl flex flex-col items-center justify-center transition-all snap-start border ${
+                          isSelected 
+                            ? 'bg-orange-500 border-orange-500 text-black shadow-lg shadow-orange-500/20' 
+                            : isDisabled
+                              ? 'bg-transparent border-transparent opacity-20 cursor-not-allowed'
+                              : 'bg-white/5 border-white/5 text-slate-300 hover:border-white/20'
+                        }`}
+                      >
+                        <span className="text-[10px] font-bold uppercase mb-1">{format(day, 'EEE', { locale: ru })}</span>
+                        <span className="text-lg font-black">{format(day, 'd')}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Часы */}
+              {selectedDate && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                  <h4 className="text-white font-bold text-lg mb-6 flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-orange-500" /> Выберите время
+                  </h4>
+                  <div className="grid grid-cols-4 gap-2">
+                    {slots.map(hour => {
+                      const isSelected = selectedSlots.includes(hour);
+                      return (
+                        <button
+                          key={hour}
+                          onClick={() => handleSlotClick(hour)}
+                          className={`h-12 rounded-xl text-xs font-bold transition-all border ${
+                            isSelected 
+                              ? 'bg-white text-black border-white shadow-lg' 
+                              : 'bg-white/5 border-white/5 text-slate-400 hover:border-white/20'
+                          }`}
+                        >
+                          {hour}:00
+                        </button>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+
+              <button
+                disabled={!selectedDate || selectedSlots.length === 0}
+                onClick={() => setStep(2)}
+                className={`w-full h-16 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all ${
+                  selectedDate && selectedSlots.length > 0
+                    ? 'bg-white text-black hover:bg-slate-200 shadow-2xl shadow-white/5'
+                    : 'bg-white/5 text-slate-600 cursor-not-allowed border border-white/5'
+                }`}
+              >
+                Продолжить <ArrowRight className="w-5 h-5" />
+              </button>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="step2"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-8"
+            >
+              <div className="space-y-6">
+                <h4 className="text-white font-bold text-xl">Ваши данные</h4>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Как к вам обращаться?</label>
+                    <input 
+                      type="text" 
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      placeholder="Имя"
+                      className="w-full h-14 bg-white/5 border border-white/10 rounded-2xl px-5 text-white outline-none focus:border-orange-500/50 transition-all"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Номер телефона</label>
+                    <input 
+                      type="tel" 
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      placeholder="+7"
+                      className="w-full h-14 bg-white/5 border border-white/10 rounded-2xl px-5 text-white outline-none focus:border-orange-500/50 transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 rounded-2xl bg-white/5 border border-white/5 space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Выбрано часов:</span>
+                  <span className="text-white font-bold">{selectedSlots.length} ч.</span>
+                </div>
+                <div className="flex justify-between text-lg pt-2 border-t border-white/5">
+                  <span className="text-white font-bold">Итого к оплате:</span>
+                  <span className="text-orange-500 font-black">{settings.currency}{totalPrice.toLocaleString()}</span>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setStep(1)}
+                  className="flex-1 h-16 rounded-2xl font-bold border border-white/10 text-white hover:bg-white/5 transition-all"
+                >
+                  Назад
+                </button>
+                <button
+                  onClick={handleWhatsApp}
+                  className="flex-[2] h-16 rounded-2xl bg-emerald-600 text-white font-bold text-lg flex items-center justify-center gap-3 hover:bg-emerald-500 transition-all shadow-xl shadow-emerald-600/20"
+                >
+                  <MessageCircle className="w-6 h-6" /> Забронировать
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Выбор даты */}
-      <div className="flex gap-2 overflow-x-auto pb-4 mb-4" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-        {dates.map((date, i) => {
-          const isSelected = isSameDay(date, selectedDate);
-          return (
-            <button
-              key={i}
-              onClick={() => { setSelectedDate(date); setSelectedSlots([]); }}
-              className={`flex-shrink-0 w-16 h-20 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-300 ${
-                isSelected
-                  ? "bg-cyan-500/20 border-cyan-500/50 border text-white shadow-[0_0_15px_rgba(6,182,212,0.2)]"
-                  : "bg-white/5 border border-white/5 text-slate-400 hover:bg-white/10"
-              }`}
-            >
-              <span className="text-xs font-medium uppercase">{format(date, 'EEE', { locale: ru })}</span>
-              <span className="text-lg font-bold">{format(date, 'd')}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Временные слоты */}
-      <div className="grid grid-cols-3 md:grid-cols-4 gap-3 mb-6">
-        {hours.map(hour => {
-          const booked = isHourBooked(hour);
-          const selected = selectedSlots.includes(hour);
-
-          return (
-            <button
-              key={hour}
-              disabled={booked}
-              onClick={() => toggleSlot(hour)}
-              className={`py-3 rounded-xl text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2 relative overflow-hidden ${
-                booked
-                  ? "bg-red-500/10 border border-red-500/20 text-red-400/50 cursor-not-allowed"
-                  : selected
-                    ? "bg-cyan-500 text-black shadow-[0_0_15px_rgba(6,182,212,0.4)] scale-[0.98]"
-                    : "bg-white/5 border border-white/5 hover:border-white/20 hover:bg-white/10 text-slate-300 active:scale-95"
-              }`}
-            >
-              {booked && <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(255,0,0,0.05)_10px,rgba(255,0,0,0.05)_20px)]" />}
-              {booked && <ShieldAlert className="w-3 h-3 text-red-500" />}
-              {!booked && selected && <div className="w-1.5 h-1.5 rounded-full bg-black" />}
-              {!booked && !selected && <div className="w-1.5 h-1.5 rounded-full bg-green-500" />}
-              {hour}:00
-            </button>
-          );
-        })}
-      </div>
-
-      <AnimatePresence>
-        {!isContiguous() && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="mb-6 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3"
-          >
-            <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-red-400">Выберите непрерывные временные слоты. Несмежные брони оформляются отдельно.</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className="border-t border-white/10 pt-6">
-        <div className="flex flex-col gap-3 mb-6">
-          <div className="flex justify-between items-center text-slate-400 text-sm">
-            <span>Цена за час</span>
-            <span className="font-medium text-white">₸{pricePerHour.toLocaleString()}</span>
-          </div>
-
-          <div className="flex justify-between items-start text-slate-400 text-sm">
-            <span>Выбрано слотов ({selectedSlots.length})</span>
-            <div className="text-right max-w-[60%]">
-              {selectedSlots.length > 0 ? (
-                <span className="text-cyan-400 font-medium">
-                  {selectedSlots.map(h => `${h}:00`).join(', ')}
-                </span>
-              ) : (
-                <span className="italic">Не выбрано</span>
-              )}
-            </div>
-          </div>
-
-          <div className="w-full h-px bg-white/10 my-2" />
-
-          <div className="flex justify-between items-center">
-            <span className="text-slate-300 font-semibold">Итого</span>
-            <motion.span
-              key={selectedSlots.length}
-              initial={{ scale: 1.2, color: '#06b6d4' }}
-              animate={{ scale: 1, color: '#ffffff' }}
-              className="text-3xl font-bold"
-            >
-              ₸{(selectedSlots.length * pricePerHour).toLocaleString()}
-            </motion.span>
-          </div>
+      <div className="p-6 bg-white/5 border-t border-white/5 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+          <Info className="w-5 h-5 text-blue-400" />
         </div>
-
-        <div className="flex flex-col gap-3">
-          <button
-            onClick={handleBook}
-            disabled={selectedSlots.length === 0 || !isContiguous()}
-            className={`w-full h-14 rounded-xl font-semibold text-lg transition-all duration-300 relative overflow-hidden group ${
-              selectedSlots.length > 0 && isContiguous()
-                ? "bg-white text-black hover:bg-slate-200 shadow-[0_0_30px_rgba(255,255,255,0.2)]"
-                : "bg-white/5 text-slate-500 cursor-not-allowed"
-            }`}
-          >
-            {selectedSlots.length > 0 && isContiguous() && (
-              <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
-            )}
-            Подтвердить бронь
-          </button>
-
-          <button
-            onClick={handleWhatsApp}
-            className="w-full h-12 rounded-xl font-semibold text-sm transition-all duration-300 bg-green-600 hover:bg-green-500 text-white flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(22,163,74,0.3)]"
-          >
-            <MessageCircle className="w-5 h-5" />
-            Написать администратору
-          </button>
-        </div>
+        <p className="text-[10px] text-slate-400 leading-relaxed font-medium">
+          Нажимая кнопку, вы перейдете в WhatsApp для подтверждения бронирования с администратором.
+        </p>
       </div>
     </div>
   );

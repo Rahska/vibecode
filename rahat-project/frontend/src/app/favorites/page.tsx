@@ -1,6 +1,6 @@
 "use client";
 
-import { useRahatStore } from "@/lib/store";
+import { useOrbitaStore } from "@/lib/store";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { Star, Users, Heart } from "lucide-react";
@@ -12,7 +12,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export default function FavoritesPage() {
-  const { locations, favorites, toggleFavorite } = useRahatStore();
+  const { locations, favorites, toggleFavorite, settings } = useOrbitaStore();
   const favoriteLocations = locations.filter(loc => favorites.includes(loc.id));
 
   return (
@@ -24,7 +24,7 @@ export default function FavoritesPage() {
         className="mb-12"
       >
         <h1 className="text-4xl lg:text-5xl font-semibold mb-2 text-white">
-          Ваше <span className="bg-clip-text text-transparent bg-gradient-to-r from-red-400 to-pink-500">Избранное</span>
+          Ваше <span className="bg-clip-text text-transparent bg-gradient-to-r from-orange-400 to-rose-500">Избранное</span>
         </h1>
         <p className="text-slate-400 text-lg">Сохранённые места для быстрого доступа.</p>
       </motion.header>
@@ -73,13 +73,13 @@ export default function FavoritesPage() {
                   </div>
                 </div>
                 <div className="px-2 pb-2">
-                  <div className="text-cyan-400 text-xs font-semibold uppercase tracking-wider mb-1">
+                  <div className="text-orange-400 text-xs font-semibold uppercase tracking-wider mb-1">
                     {TYPE_LABELS[loc.type] || loc.type}
                   </div>
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="text-xl font-semibold text-white truncate pr-2">{loc.name}</h3>
                     <div className="text-right whitespace-nowrap">
-                      <span className="text-lg font-bold text-white">₸{loc.pricePerHour.toLocaleString()}</span>
+                      <span className="text-lg font-bold text-white">{settings.currency}{loc.pricePerHour.toLocaleString()}</span>
                       <span className="text-xs text-slate-400">/ч</span>
                     </div>
                   </div>
