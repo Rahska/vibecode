@@ -45,8 +45,8 @@ export default function Home() {
 
   const filteredLocations = locations.filter(loc => {
     const matchType = activeFilter === 'All' || loc.type === activeFilter;
-    const matchSearch = loc.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                        loc.type.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchSearch = loc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      loc.type.toLowerCase().includes(searchQuery.toLowerCase());
     const matchPrice = loc.pricePerHour <= maxPrice;
     return matchType && matchSearch && matchPrice;
   });
@@ -59,12 +59,12 @@ export default function Home() {
   if (isLoading) return <PageSkeleton />;
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="p-6 lg:p-14 w-full"
     >
       {/* Header */}
-      <motion.header 
+      <motion.header
         initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.6, delay: 0.1 }}
         className="flex flex-col lg:flex-row lg:justify-between lg:items-end mb-10 gap-6"
@@ -82,7 +82,7 @@ export default function Home() {
       </motion.header>
 
       {/* Search Bar */}
-      <motion.div 
+      <motion.div
         initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.6, delay: 0.15 }}
         className="glass-panel p-2 mb-8 flex flex-col md:flex-row items-center gap-2"
@@ -110,19 +110,18 @@ export default function Home() {
       </motion.div>
 
       {/* Type Filters */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
-        className="flex gap-2 mb-10 overflow-x-auto pb-2" style={{scrollbarWidth:'none'}}
+        className="flex gap-2 mb-10 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}
       >
         {TYPES.map(type => (
           <button
             key={type}
             onClick={() => setActiveFilter(type)}
-            className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-300 border ${
-              activeFilter === type 
-                ? 'bg-cyan-500 text-black border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.4)]' 
+            className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-300 border ${activeFilter === type
+                ? 'bg-cyan-500 text-black border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.4)]'
                 : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10 hover:text-white'
-            }`}
+              }`}
           >
             {type}
           </button>
@@ -131,7 +130,7 @@ export default function Home() {
 
       {/* Popular Now Section */}
       {activeFilter === 'All' && searchQuery === '' && (
-        <motion.section 
+        <motion.section
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
           className="mb-12"
         >
@@ -176,7 +175,7 @@ export default function Home() {
 
       {/* Recently Viewed */}
       {recentlyViewedLocations.length > 0 && activeFilter === 'All' && searchQuery === '' && (
-        <motion.section 
+        <motion.section
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
           className="mb-12"
         >
@@ -184,7 +183,7 @@ export default function Home() {
             <Clock className="w-5 h-5 text-slate-400" />
             <h2 className="text-2xl font-semibold text-white">Recently Viewed</h2>
           </div>
-          <div className="flex gap-4 overflow-x-auto pb-2" style={{scrollbarWidth:'none'}}>
+          <div className="flex gap-4 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
             {recentlyViewedLocations.map((loc) => (
               <Link href={`/location/${loc.id}`} key={loc.id} className="flex-shrink-0">
                 <div className="w-52 glass-card p-2 group cursor-pointer">
@@ -212,7 +211,7 @@ export default function Home() {
 
       <AnimatePresence mode="wait">
         {filteredLocations.length === 0 ? (
-          <motion.div 
+          <motion.div
             key="empty"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="glass-panel p-16 text-center flex flex-col items-center"
@@ -226,7 +225,7 @@ export default function Home() {
             </button>
           </motion.div>
         ) : (
-          <motion.div 
+          <motion.div
             key="grid"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
@@ -241,15 +240,15 @@ export default function Home() {
                     className={`glass-card ${loc.glowColor || ''} p-3 cursor-pointer group relative`}
                   >
                     <div className="relative w-full h-[240px] rounded-xl overflow-hidden mb-4">
-                      <img 
-                        src={loc.images[0] || 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=1000'} 
+                      <img
+                        src={loc.images[0] || 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=1000'}
                         alt={loc.name}
                         loading="lazy"
                         className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-transparent to-transparent opacity-80" />
-                      
-                      <button 
+
+                      <button
                         onClick={(e) => handleFavorite(e, loc.id)}
                         className="absolute top-3 left-3 w-8 h-8 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors z-10"
                       >
@@ -279,7 +278,7 @@ export default function Home() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 text-slate-400 text-sm">
-                        <Users className="w-4 h-4" /> 
+                        <Users className="w-4 h-4" />
                         <span>Up to {loc.capacity} guests</span>
                       </div>
                     </div>

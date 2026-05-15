@@ -2,20 +2,25 @@
 
 import { useRahatStore } from "@/lib/store";
 import { motion } from "framer-motion";
-import { Camera, Save, User } from "lucide-react";
+import { Camera, Save, User, CalendarDays, Star, MessageSquare } from "lucide-react";
 import { useState, useRef } from "react";
 import { toast } from "sonner";
+import Link from "next/link";
 
 export default function ProfilePage() {
-  const { profile, updateProfile, addNotification } = useRahatStore();
+  const { profile, updateProfile, addNotification, bookings, reviews: allReviews, locations } = useRahatStore();
   
   const [name, setName] = useState(profile.name);
   const [phone, setPhone] = useState(profile.phone);
   const [email, setEmail] = useState(profile.email);
+  const [bio, setBio] = useState(profile.bio || "");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const userReviews = allReviews.filter(r => r.author === profile.name);
+  const confirmedBookingsCount = bookings.filter(b => b.status === 'CONFIRMED').length;
+
   const handleSave = () => {
-    updateProfile({ name, phone, email });
+    updateProfile({ name, phone, email, bio });
     addNotification({ title: 'Profile Updated', message: 'Your profile information has been successfully saved.' });
     toast.success("Profile saved successfully");
   };
@@ -52,6 +57,25 @@ export default function ProfilePage() {
         <p className="text-slate-400 text-lg">Manage your personal information and preferences.</p>
       </motion.header>
 
+      {/* Stats Row */}
+      <div className="grid grid-cols-3 gap-4 mb-10">
+        <div className="glass-card p-4 sm:p-6 text-center border-t-2 border-t-cyan-500">
+          <CalendarDays className="w-6 h-6 text-cyan-500 mx-auto mb-2" />
+          <div className="text-2xl font-bold text-white">{confirmedBookingsCount}</div>
+          <div className="text-xs text-slate-400 uppercase tracking-wider">Bookings</div>
+        </div>
+        <div className="glass-card p-4 sm:p-6 text-center border-t-2 border-t-yellow-500">
+          <Star className="w-6 h-6 text-yellow-500 mx-auto mb-2" />
+          <div className="text-2xl font-bold text-white">{userReviews.length}</div>
+          <div className="text-xs text-slate-400 uppercase tracking-wider">Reviews</div>
+        </div>
+        <div className="glass-card p-4 sm:p-6 text-center border-t-2 border-t-purple-500">
+          <User className="w-6 h-6 text-purple-500 mx-auto mb-2" />
+          <div className="text-2xl font-bold text-white">{profile.memberSince || '2026'}</div>
+          <div className="text-xs text-slate-400 uppercase tracking-wider">Member Since</div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
         <div className="md:col-span-1 flex flex-col items-center">
           <div className="relative group mb-6">
@@ -80,46 +104,91 @@ export default function ProfilePage() {
           <p className="text-slate-400 text-center">{profile.email}</p>
         </div>
 
-        <div className="md:col-span-2 glass-panel p-8">
-          <h3 className="text-xl font-semibold text-white mb-6">Personal Information</h3>
-          
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-400 mb-2">Full Name</label>
-              <input 
-                type="text" 
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500/50 transition-colors"
-              />
-            </div>
+        <div className="md:col-span-2 space-y-8">
+          <div className="glass-panel p-8">
+            <h3 className="text-xl font-semibold text-white mb-6">Personal Information</h3>
             
-            <div>
-              <label className="block text-sm font-medium text-slate-400 mb-2">Email Address</label>
-              <input 
-                type="email" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500/50 transition-colors"
-              />
-            </div>
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-2">Full Name</label>
+                <input 
+                  type="text" 
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500/50 transition-colors"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-2">Email Address</label>
+                <input 
+                  type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500/50 transition-colors"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-400 mb-2">Phone Number</label>
-              <input 
-                type="tel" 
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500/50 transition-colors"
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-2">Phone Number</label>
+                <input 
+                  type="tel" 
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500/50 transition-colors"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-2">Bio</label>
+                <textarea 
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  placeholder="Tell us a little about yourself..."
+                  rows={3}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500/50 transition-colors resize-none"
+                />
+              </div>
 
-            <button 
-              onClick={handleSave}
-              className="mt-8 px-8 py-3 bg-white text-black font-semibold rounded-xl hover:bg-slate-200 transition-colors flex items-center gap-2"
-            >
-              <Save className="w-4 h-4" /> Save Changes
-            </button>
+              <button 
+                onClick={handleSave}
+                className="mt-8 px-8 py-3 bg-white text-black font-semibold rounded-xl hover:bg-slate-200 transition-colors flex items-center gap-2"
+              >
+                <Save className="w-4 h-4" /> Save Changes
+              </button>
+            </div>
+          </div>
+          
+          <div className="glass-panel p-8">
+            <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+              <MessageSquare className="w-5 h-5 text-cyan-500" /> Recent Reviews
+            </h3>
+            
+            {userReviews.length === 0 ? (
+              <p className="text-slate-400 text-sm">You haven't written any reviews yet.</p>
+            ) : (
+              <div className="space-y-4">
+                {userReviews.slice(0, 3).map(review => {
+                  const loc = locations.find(l => l.id === review.locationId);
+                  return (
+                    <div key={review.id} className="p-4 rounded-xl border border-white/5 bg-white/5 hover:border-white/20 transition-colors">
+                      <div className="flex justify-between items-start mb-2">
+                        <Link href={`/location/${review.locationId}`} className="font-semibold text-white hover:text-cyan-400 transition-colors">
+                          {loc?.name || 'Unknown Location'}
+                        </Link>
+                        <div className="flex gap-0.5">
+                          {[1,2,3,4,5].map(s => (
+                            <Star key={s} className={`w-3.5 h-3.5 ${s <= review.rating ? 'text-yellow-400 fill-yellow-400' : 'text-slate-600'}`} />
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-slate-300 text-sm leading-relaxed mb-2 line-clamp-2">{review.text}</p>
+                      <div className="text-xs text-slate-500">{review.date}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>

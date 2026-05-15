@@ -1,24 +1,48 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useRahatStore } from "@/lib/store";
-import { MapPin, Info, ArrowRight } from "lucide-react";
+import { MapPin, Info, ArrowRight, X, Star, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
 export default function MapPage() {
   const { locations } = useRahatStore();
-  const [hoveredLocation, setHoveredLocation] = useState<string | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
 
-  // Hardcoded coordinates on a 100x100 grid (percentages) to simulate 2D map
+  // Dynamic coordinates on a 100x100 grid (percentages) to simulate 2D map
   const mapCoordinates: Record<string, { x: number, y: number, color: string }> = {
     '1': { x: 20, y: 30, color: 'bg-cyan-500' }, // Royal Yurt
     '2': { x: 70, y: 40, color: 'bg-blue-500' }, // Sky Lounge
-    '3': { x: 45, y: 70, color: 'bg-green-500' }, // Forest Gazebo
+    '3': { x: 45, y: 70, color: 'bg-emerald-500' }, // Forest Gazebo
+    '4': { x: 80, y: 20, color: 'bg-cyan-500' }, // Grand Family Yurt
+    '5': { x: 30, y: 80, color: 'bg-purple-500' }, // Riverside BBQ
+    '6': { x: 85, y: 75, color: 'bg-rose-500' }, // Sunset Field
   };
 
+  const selectedLocData = locations.find(l => l.id === selectedLocation);
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'YURT': return 'bg-cyan-500';
+      case 'VIP': return 'bg-blue-500';
+      case 'GAZEBO': return 'bg-emerald-500';
+      case 'BBQ': return 'bg-purple-500';
+      case 'FIELD': return 'bg-rose-500';
+      default: return 'bg-white';
+    }
+  };
+
+  const legendItems = [
+    { label: 'Yurt', color: 'bg-cyan-500' },
+    { label: 'VIP', color: 'bg-blue-500' },
+    { label: 'Gazebo', color: 'bg-emerald-500' },
+    { label: 'BBQ', color: 'bg-purple-500' },
+    { label: 'Field', color: 'bg-rose-500' },
+  ];
+
   return (
-    <div className="p-6 lg:p-14 w-full h-full flex flex-col">
+    <div className="p-6 lg:p-14 w-full h-full flex flex-col relative overflow-hidden">
       <motion.header 
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -31,67 +55,112 @@ export default function MapPage() {
         <p className="text-slate-400 text-lg">Explore the territory and find your perfect spot.</p>
       </motion.header>
 
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.8, delay: 0.2 }}
-        className="flex-1 glass-panel rounded-3xl relative overflow-hidden bg-[#0A0A0A]/50 border-white/5 min-h-[600px]"
-      >
-        {/* Fake map background lines to make it look like a blueprint/territory plan */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:40px_40px]" />
-        
-        {/* Territory Elements (Lake, Trees) */}
-        <div className="absolute top-[10%] right-[15%] w-[30%] h-[25%] bg-blue-500/10 rounded-[100px] blur-2xl pointer-events-none" />
-        <div className="absolute bottom-[20%] left-[10%] w-[40%] h-[30%] bg-emerald-500/10 rounded-[100px] blur-2xl pointer-events-none" />
+      <div className="flex-1 flex gap-6 relative">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+          className="flex-1 glass-panel rounded-3xl relative overflow-hidden bg-[#0A0A0A]/50 border-white/5 min-h-[600px]"
+        >
+          {/* Legend */}
+          <div className="absolute top-6 left-6 z-20 glass-card p-4 rounded-2xl flex flex-col gap-3 backdrop-blur-md">
+            <h3 className="text-white text-xs font-bold uppercase tracking-wider mb-1">Legend</h3>
+            {legendItems.map(item => (
+              <div key={item.label} className="flex items-center gap-3">
+                <div className={`w-3 h-3 rounded-full ${item.color} shadow-[0_0_10px_rgba(255,255,255,0.2)]`} />
+                <span className="text-sm text-slate-300 font-medium">{item.label}</span>
+              </div>
+            ))}
+          </div>
 
-        {/* Map Markers */}
-        {locations.map((loc) => {
-          const coords = mapCoordinates[loc.id] || { x: 50, y: 50, color: 'bg-white' };
-          const isHovered = hoveredLocation === loc.id;
+          {/* Fake map background lines to make it look like a blueprint/territory plan */}
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:40px_40px]" />
           
-          return (
-            <div 
-              key={loc.id}
-              className="absolute group z-10"
-              style={{ left: `${coords.x}%`, top: `${coords.y}%`, transform: 'translate(-50%, -50%)' }}
-              onMouseEnter={() => setHoveredLocation(loc.id)}
-              onMouseLeave={() => setHoveredLocation(null)}
+          {/* Territory Elements (Lake, Trees) */}
+          <div className="absolute top-[10%] right-[15%] w-[30%] h-[25%] bg-blue-500/10 rounded-[100px] blur-2xl pointer-events-none" />
+          <div className="absolute bottom-[20%] left-[10%] w-[40%] h-[30%] bg-emerald-500/10 rounded-[100px] blur-2xl pointer-events-none" />
+
+          {/* Map Markers */}
+          {locations.map((loc) => {
+            const predefined = mapCoordinates[loc.id];
+            const color = predefined ? predefined.color : getTypeColor(loc.type);
+            
+            // Randomize position slightly if no predefined coords
+            const hashCode = (str: string) => str.split('').reduce((a,b)=>{a=((a<<5)-a)+b.charCodeAt(0);return a&a},0);
+            const randomX = 10 + (Math.abs(hashCode(loc.id)) % 80);
+            const randomY = 10 + (Math.abs(hashCode(loc.id + "y")) % 80);
+            
+            const coords = predefined || { x: randomX, y: randomY, color };
+            const isSelected = selectedLocation === loc.id;
+            
+            return (
+              <div 
+                key={loc.id}
+                className="absolute group z-10"
+                style={{ left: `${coords.x}%`, top: `${coords.y}%`, transform: 'translate(-50%, -50%)' }}
+                onClick={() => setSelectedLocation(isSelected ? null : loc.id)}
+              >
+                {/* Ping Animation */}
+                <div className={`absolute inset-0 rounded-full ${coords.color} opacity-20 animate-ping`} />
+                
+                {/* Marker Pin */}
+                <div className={`relative w-8 h-8 rounded-full ${coords.color} flex items-center justify-center shadow-[0_0_20px_rgba(0,0,0,0.5)] cursor-pointer hover:scale-125 transition-all duration-300 ${isSelected ? 'scale-125 ring-4 ring-white/30' : ''}`}>
+                  <MapPin className="w-4 h-4 text-black" />
+                </div>
+              </div>
+            );
+          })}
+        </motion.div>
+
+        {/* Side Panel for Details */}
+        <AnimatePresence>
+          {selectedLocData && (
+            <motion.div 
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="w-80 glass-panel rounded-3xl p-5 flex flex-col relative shrink-0"
             >
-              {/* Ping Animation */}
-              <div className={`absolute inset-0 rounded-full ${coords.color} opacity-20 animate-ping`} />
-              
-              {/* Marker Pin */}
-              <div className={`relative w-8 h-8 rounded-full ${coords.color} flex items-center justify-center shadow-[0_0_20px_rgba(0,0,0,0.5)] cursor-pointer hover:scale-125 transition-transform`}>
-                <MapPin className="w-4 h-4 text-black" />
+              <button 
+                onClick={() => setSelectedLocation(null)}
+                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center hover:bg-white/10 transition-colors z-10 border border-white/10"
+              >
+                <X className="w-4 h-4 text-white" />
+              </button>
+
+              <div className="w-full h-48 rounded-2xl overflow-hidden mb-5">
+                <img src={selectedLocData.images[0]} alt={selectedLocData.name} className="w-full h-full object-cover" />
               </div>
 
-              {/* Tooltip Card */}
-              {isHovered && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-64 glass-card p-3 shadow-2xl z-50 pointer-events-none"
-                >
-                  <div className="w-full h-24 rounded-lg overflow-hidden mb-3">
-                    <img src={loc.images[0]} alt={loc.name} className="w-full h-full object-cover" />
-                  </div>
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-white font-semibold leading-tight">{loc.name}</h3>
-                    <span className="text-xs font-bold text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded">${loc.pricePerHour}/hr</span>
-                  </div>
-                  <div className="flex items-center text-xs text-slate-400 gap-1 mb-3">
-                    <Info className="w-3 h-3" />
-                    <span>Up to {loc.capacity} guests</span>
-                  </div>
-                  <Link href={`/location/${loc.id}`} className="w-full py-2 bg-white text-black text-xs font-bold rounded-lg flex items-center justify-center gap-1 pointer-events-auto hover:bg-slate-200 transition-colors">
-                    View Details <ArrowRight className="w-3 h-3" />
-                  </Link>
-                </motion.div>
-              )}
-            </div>
-          );
-        })}
-      </motion.div>
+              <div className="flex justify-between items-start mb-3">
+                <h3 className="text-xl font-bold text-white">{selectedLocData.name}</h3>
+                <span className="text-xs font-bold text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2 py-1 rounded-lg">
+                  ${selectedLocData.pricePerHour}/hr
+                </span>
+              </div>
+
+              <div className="flex items-center gap-4 text-xs font-medium text-slate-400 mb-6">
+                <div className="flex items-center gap-1">
+                  <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
+                  <span className="text-slate-300">{selectedLocData.rating.toFixed(1)}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Users className="w-3.5 h-3.5" />
+                  <span className="text-slate-300">Up to {selectedLocData.capacity}</span>
+                </div>
+              </div>
+
+              <p className="text-sm text-slate-400 leading-relaxed mb-6 flex-1 line-clamp-4">
+                {selectedLocData.description}
+              </p>
+
+              <Link href={`/location/${selectedLocData.id}`} className="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-all">
+                View Details <ArrowRight className="w-4 h-4" />
+              </Link>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

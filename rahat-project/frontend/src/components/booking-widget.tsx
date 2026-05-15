@@ -5,7 +5,7 @@ import { format, addDays, isSameDay } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRahatStore, Booking } from "@/lib/store";
 import { toast } from "sonner";
-import { CheckCircle2, Clock, ShieldAlert } from "lucide-react";
+import { CheckCircle2, Clock, ShieldAlert, AlertCircle } from "lucide-react";
 
 interface BookingWidgetProps {
   locationId: string;
@@ -43,16 +43,25 @@ export function BookingWidget({ locationId, pricePerHour }: BookingWidgetProps) 
     if (selectedSlots.length === 0) {
       setTimeLeft(null);
     }
+  }, [selectedSlots.length]);
 
-    if (timeLeft !== null && timeLeft > 0) {
-      const timer = setInterval(() => setTimeLeft(t => (t ? t - 1 : 0)), 1000);
-      return () => clearInterval(timer);
-    } else if (timeLeft === 0) {
-      setSelectedSlots([]);
-      setTimeLeft(null);
-      toast.error("Booking session expired. Please select slots again.");
-    }
-  }, [selectedSlots.length, timeLeft]);
+  useEffect(() => {
+    if (timeLeft === null || timeLeft === 0) return;
+    
+    const timer = setInterval(() => {
+      setTimeLeft(t => {
+        if (t && t <= 1) {
+          clearInterval(timer);
+          setSelectedSlots([]);
+          toast.error("Booking session expired. Please select slots again.");
+          return 0;
+        }
+        return t ? t - 1 : 0;
+      });
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, [timeLeft === null]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -70,8 +79,21 @@ export function BookingWidget({ locationId, pricePerHour }: BookingWidgetProps) 
     }
   };
 
+  const isContiguous = () => {
+    if (selectedSlots.length <= 1) return true;
+    return selectedSlots.every((slot, index) => {
+      if (index === 0) return true;
+      return slot === selectedSlots[index - 1] + 1;
+    });
+  };
+
   const handleBook = () => {
     if (selectedSlots.length === 0) return;
+    
+    if (!isContiguous()) {
+      toast.error("Please select contiguous time slots for a single booking.");
+      return;
+    }
     
     const startHour = Math.min(...selectedSlots);
     const endHour = Math.max(...selectedSlots) + 1;
@@ -120,15 +142,15 @@ export function BookingWidget({ locationId, pricePerHour }: BookingWidgetProps) 
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-xl font-semibold text-white">Select Date & Time</h3>
         <AnimatePresence>
-          {timeLeft !== null && (
+          {timeLeft !== null && timeLeft > 0 && (
             <motion.div 
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
-              className="px-3 py-1.5 bg-red-500/10 border border-red-500/20 rounded-full flex items-center gap-2"
+              className={`px-3 py-1.5 border rounded-full flex items-center gap-2 ${timeLeft < 60 ? 'bg-red-500/10 border-red-500/20 text-red-400 animate-pulse' : 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400'}`}
             >
-              <Clock className="w-4 h-4 text-red-400 animate-pulse" />
-              <span className="text-sm font-semibold text-red-400">{formatTime(timeLeft)}</span>
+              <Clock className="w-4 h-4" />
+              <span className="text-sm font-semibold">{formatTime(timeLeft)}</span>
             </motion.div>
           )}
         </AnimatePresence>
@@ -156,7 +178,7 @@ export function BookingWidget({ locationId, pricePerHour }: BookingWidgetProps) 
       </div>
 
       {/* Time Slots */}
-      <div className="grid grid-cols-3 md:grid-cols-4 gap-3 mb-8">
+      <div className="grid grid-cols-3 md:grid-cols-4 gap-3 mb-6">
         {hours.map(hour => {
           const booked = isHourBooked(hour);
           const selected = selectedSlots.includes(hour);
@@ -184,17 +206,42 @@ export function BookingWidget({ locationId, pricePerHour }: BookingWidgetProps) 
         })}
       </div>
 
+      <AnimatePresence>
+        {!isContiguous() && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-6 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3"
+          >
+            <AlertCircle className="w-5 h-5 text-red-400 mt-0.5" />
+            <p className="text-sm text-red-400">Please select contiguous time slots. Multiple separate bookings must be made individually.</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="border-t border-white/10 pt-6">
-        <div className="flex flex-col gap-2 mb-6">
+        <div className="flex flex-col gap-3 mb-6">
           <div className="flex justify-between items-center text-slate-400 text-sm">
             <span>Price per hour</span>
-            <span>${pricePerHour}</span>
+            <span className="font-medium text-white">${pricePerHour}</span>
           </div>
-          <div className="flex justify-between items-center text-slate-400 text-sm">
-            <span>Selected hours</span>
-            <span>{selectedSlots.length}</span>
+          
+          <div className="flex justify-between items-start text-slate-400 text-sm">
+            <span>Selected slots ({selectedSlots.length})</span>
+            <div className="text-right max-w-[60%]">
+              {selectedSlots.length > 0 ? (
+                <span className="text-cyan-400 font-medium">
+                  {selectedSlots.map(h => `${h}:00`).join(', ')}
+                </span>
+              ) : (
+                <span className="italic">None</span>
+              )}
+            </div>
           </div>
+          
           <div className="w-full h-px bg-white/10 my-2" />
+          
           <div className="flex justify-between items-center">
             <span className="text-slate-300 font-semibold">Total Price</span>
             <motion.span 
@@ -210,14 +257,14 @@ export function BookingWidget({ locationId, pricePerHour }: BookingWidgetProps) 
         
         <button 
           onClick={handleBook}
-          disabled={selectedSlots.length === 0}
+          disabled={selectedSlots.length === 0 || !isContiguous()}
           className={`w-full h-14 rounded-xl font-semibold text-lg transition-all duration-300 relative overflow-hidden group ${
-            selectedSlots.length > 0
+            selectedSlots.length > 0 && isContiguous()
               ? "bg-white text-black hover:bg-slate-200 shadow-[0_0_30px_rgba(255,255,255,0.2)]"
               : "bg-white/5 text-slate-500 cursor-not-allowed"
           }`}
         >
-          {selectedSlots.length > 0 && (
+          {selectedSlots.length > 0 && isContiguous() && (
             <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
           )}
           Confirm Booking

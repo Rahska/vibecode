@@ -4,6 +4,7 @@ import { useRahatStore } from "@/lib/store";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { Star, Users, Heart } from "lucide-react";
+import { toast } from "sonner";
 
 export default function FavoritesPage() {
   const { locations, favorites, toggleFavorite } = useRahatStore();
@@ -45,14 +46,18 @@ export default function FavoritesPage() {
               >
                 <div className="relative w-full h-[240px] rounded-xl overflow-hidden mb-4">
                   <img 
-                    src={loc.images[0] || 'https://via.placeholder.com/400x300'} 
+                    src={loc.images[0] || 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=1000'} 
                     alt={loc.name}
                     className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-transparent to-transparent opacity-80" />
                   
                   <button 
-                    onClick={(e) => { e.preventDefault(); toggleFavorite(loc.id); }}
+                    onClick={(e) => { 
+                      e.preventDefault(); 
+                      toggleFavorite(loc.id); 
+                      toast.info("Removed from favorites");
+                    }}
                     className="absolute top-3 left-3 w-8 h-8 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors z-10"
                   >
                     <Heart className="w-4 h-4 fill-red-500 text-red-500" />

@@ -6,6 +6,7 @@ export type LocationType = 'YURT' | 'TAPCHAN' | 'VIP' | 'FIELD' | 'GAZEBO' | 'BB
 export interface Location {
   id: string;
   name: string;
+  description: string;
   type: LocationType;
   pricePerHour: number;
   capacity: number;
@@ -47,6 +48,8 @@ export interface UserProfile {
   email: string;
   phone: string;
   avatar: string;
+  memberSince: string;
+  bio: string;
 }
 
 export interface Notification {
@@ -76,6 +79,7 @@ interface RahatState {
   
   // Booking Actions
   addBooking: (booking: Booking) => void;
+  updateBooking: (id: string, booking: Partial<Booking>) => void;
   cancelBooking: (bookingId: string) => void;
   
   // User Actions
@@ -95,6 +99,7 @@ const INITIAL_LOCATIONS: Location[] = [
   {
     id: '1',
     name: 'Royal Yurt V1',
+    description: 'Experience ultimate luxury in our premium Royal Yurt V1. Perfect for corporate events, family gatherings, or romantic getaways. Enjoy breathtaking views of the Almaty mountains, high-end service, and absolute privacy. Every detail is carefully designed to provide an unforgettable premium stay in the heart of Kazakhstan\'s nature.',
     type: 'YURT',
     pricePerHour: 50,
     capacity: 10,
@@ -107,6 +112,7 @@ const INITIAL_LOCATIONS: Location[] = [
   {
     id: '2',
     name: 'Sky Lounge Tapchan',
+    description: 'Elevate your relaxation at the Sky Lounge Tapchan. Offering panoramic views and premium services including a dedicated waiter and high-end hookah. Ideal for special celebrations and VIP gatherings.',
     type: 'VIP',
     pricePerHour: 85,
     capacity: 15,
@@ -119,12 +125,52 @@ const INITIAL_LOCATIONS: Location[] = [
   {
     id: '3',
     name: 'Forest Gazebo',
+    description: 'Immerse yourself in nature with our Forest Gazebo. Features a built-in BBQ grill and stunning forest views. A perfect escape for family picnics and outdoor enthusiasts.',
     type: 'GAZEBO',
     pricePerHour: 30,
     capacity: 8,
     rating: 4.7,
     images: ['https://images.unsplash.com/photo-1499803270242-467f73115827?q=80&w=1000&auto=format&fit=crop'],
     features: ['BBQ Grill', 'Nature View'],
+    isActive: true,
+    glowColor: 'glow-cyan'
+  },
+  {
+    id: '4',
+    name: 'Grand Family Yurt',
+    description: 'A spacious traditional yurt designed for large families and groups. Authentic Kazakh interior mixed with modern amenities for a comfortable stay.',
+    type: 'YURT',
+    pricePerHour: 65,
+    capacity: 20,
+    rating: 4.8,
+    images: ['https://images.unsplash.com/photo-1526402923594-555e142e0b57?q=80&w=1000&auto=format&fit=crop'],
+    features: ['Large Capacity', 'Traditional Decor', 'Air Conditioning'],
+    isActive: true,
+    glowColor: 'glow-cyan'
+  },
+  {
+    id: '5',
+    name: 'Riverside BBQ Spot',
+    description: 'Enjoy a perfect BBQ day right next to the mountain river. Fully equipped with grills, prep areas, and comfortable seating for your group.',
+    type: 'BBQ',
+    pricePerHour: 25,
+    capacity: 12,
+    rating: 4.6,
+    images: ['https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=1000&auto=format&fit=crop'],
+    features: ['River View', 'Professional Grill', 'Prep Area'],
+    isActive: true,
+    glowColor: 'glow-blue'
+  },
+  {
+    id: '6',
+    name: 'Sunset VIP Field',
+    description: 'An exclusive open-air field setup perfect for sunset watching, outdoor yoga, or premium private events with spectacular valley views.',
+    type: 'FIELD',
+    pricePerHour: 100,
+    capacity: 50,
+    rating: 5.0,
+    images: ['https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=1000&auto=format&fit=crop'],
+    features: ['Open Space', 'Sunset View', 'Event Ready'],
     isActive: true,
     glowColor: 'glow-cyan'
   }
@@ -150,17 +196,19 @@ export const useRahatStore = create<RahatState>()(
         name: 'Guest User',
         email: 'guest@example.com',
         phone: '+1 234 567 890',
-        avatar: ''
+        avatar: '',
+        memberSince: '2026',
+        bio: 'I love exploring premium locations and enjoying nature.'
       },
       notifications: [
         { id: 'n1', title: 'Welcome to RAHAT!', message: 'Explore our premium locations and book your first stay.', isRead: false, createdAt: Date.now() }
       ],
       recentlyViewed: [],
 
-      addLocation: (location) => set((state) => {
-        state.addActivity(`New location added: ${location.name}`);
-        return { locations: [...state.locations, location] };
-      }),
+      addLocation: (location) => {
+        set((state) => ({ locations: [...state.locations, location] }));
+        get().addActivity(`New location added: ${location.name}`);
+      },
       
       updateLocation: (id, updated) => set((state) => ({
         locations: state.locations.map(loc => loc.id === id ? { ...loc, ...updated } : loc)
@@ -184,18 +232,22 @@ export const useRahatStore = create<RahatState>()(
         )
       })),
 
-      addBooking: (booking) => set((state) => {
-        state.addActivity(`New booking created for ${booking.locationId}`);
-        state.addNotification({ title: 'Booking Confirmed', message: `Your booking for $${booking.totalPrice} has been confirmed.` });
-        return { bookings: [...state.bookings, booking] };
-      }),
+      addBooking: (booking) => {
+        set((state) => ({ bookings: [...state.bookings, booking] }));
+        get().addActivity(`New booking created for location ID: ${booking.locationId}`);
+        get().addNotification({ title: 'Booking Confirmed', message: `Your booking for $${booking.totalPrice} has been confirmed.` });
+      },
       
-      cancelBooking: (bookingId) => set((state) => {
-        state.addNotification({ title: 'Booking Cancelled', message: `Booking #${bookingId.substring(0,6)} has been cancelled.` });
-        return {
+      updateBooking: (id, updated) => set((state) => ({
+        bookings: state.bookings.map(b => b.id === id ? { ...b, ...updated } : b)
+      })),
+
+      cancelBooking: (bookingId) => {
+        set((state) => ({
           bookings: state.bookings.map(b => b.id === bookingId ? { ...b, status: 'CANCELLED' } : b)
-        };
-      }),
+        }));
+        get().addNotification({ title: 'Booking Cancelled', message: `Booking #${bookingId.substring(0,6)} has been cancelled.` });
+      },
 
       toggleFavorite: (locationId) => set((state) => {
         const isFav = state.favorites.includes(locationId);
@@ -215,17 +267,18 @@ export const useRahatStore = create<RahatState>()(
         return { recentlyViewed: [locationId, ...filtered].slice(0, 10) }; // Keep last 10
       }),
 
-      addReview: (review) => set((state) => {
-        const newReviews = [...state.reviews, review];
+      addReview: (review) => {
+        const { reviews, updateLocation, addActivity } = get();
+        const newReviews = [...reviews, review];
+        set({ reviews: newReviews });
+        
         // Recalculate rating
         const locReviews = newReviews.filter(r => r.locationId === review.locationId);
         const avgRating = locReviews.reduce((acc, curr) => acc + curr.rating, 0) / locReviews.length;
         
-        state.updateLocation(review.locationId, { rating: Number(avgRating.toFixed(1)) });
-        state.addActivity(`${review.author} left a ${review.rating}-star review`);
-        
-        return { reviews: newReviews };
-      }),
+        updateLocation(review.locationId, { rating: Number(avgRating.toFixed(1)) });
+        addActivity(`${review.author} left a ${review.rating}-star review`);
+      },
 
       addNotification: (notif) => set((state) => ({
         notifications: [{ ...notif, id: Math.random().toString(36).substr(2, 9), isRead: false, createdAt: Date.now() }, ...state.notifications]

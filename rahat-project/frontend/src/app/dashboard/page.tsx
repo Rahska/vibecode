@@ -2,24 +2,13 @@
 
 import { useRahatStore, Location, LocationType } from "@/lib/store";
 import { motion, AnimatePresence } from "framer-motion";
-import { DollarSign, TrendingUp, Users, UploadCloud, Plus, Pencil, Trash2, X, Save, Eye, EyeOff } from "lucide-react";
+import { DollarSign, TrendingUp, Users, UploadCloud, Plus, Pencil, Trash2, X, Save, Eye, EyeOff, AlertTriangle } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { useDropzone } from 'react-dropzone';
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
-const MOCK_CHART_DATA = [
-  { name: 'Mon', revenue: 4000, bookings: 4 },
-  { name: 'Tue', revenue: 3000, bookings: 3 },
-  { name: 'Wed', revenue: 5200, bookings: 6 },
-  { name: 'Thu', revenue: 2780, bookings: 3 },
-  { name: 'Fri', revenue: 6890, bookings: 8 },
-  { name: 'Sat', revenue: 9200, bookings: 11 },
-  { name: 'Sun', revenue: 7490, bookings: 9 },
-];
-
 const LOCATION_TYPES: LocationType[] = ['YURT', 'TAPCHAN', 'VIP', 'FIELD', 'GAZEBO', 'BBQ'];
-const GLOW_COLORS = ['glow-cyan', 'glow-blue', ''];
 
 interface LocationFormData {
   name: string;
@@ -40,10 +29,25 @@ export default function DashboardPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<LocationFormData>(DEFAULT_FORM);
+  const [deleteModal, setDeleteModal] = useState<{isOpen: boolean; id: string; name: string}>({ isOpen: false, id: '', name: '' });
 
   const confirmedBookings = bookings.filter(b => b.status === 'CONFIRMED');
   const totalRevenue = confirmedBookings.reduce((acc, curr) => acc + curr.totalPrice, 0);
-  const cancelledBookings = bookings.filter(b => b.status === 'CANCELLED');
+
+  // Generate real data for charts (last 7 days)
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return d.toISOString().split('T')[0];
+  });
+
+  const chartData = last7Days.map(date => {
+    const dayBookings = bookings.filter(b => b.date === date && b.status === 'CONFIRMED');
+    const revenue = dayBookings.reduce((acc, curr) => acc + curr.totalPrice, 0);
+    const dateObj = new Date(date);
+    const name = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+    return { name, revenue, bookings: dayBookings.length, date };
+  });
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (!selectedLocation) return;
@@ -91,6 +95,7 @@ export default function DashboardPage() {
         id: Math.random().toString(36).substr(2, 9),
         rating: 4.5,
         images: ['https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=1000'],
+        description: "",
         ...locationData,
       });
       toast.success(`"${formData.name}" added to catalog`);
@@ -98,11 +103,10 @@ export default function DashboardPage() {
     setShowAddModal(false);
   };
 
-  const handleDelete = (id: string, name: string) => {
-    if (confirm(`Delete "${name}"? This action cannot be undone.`)) {
-      deleteLocation(id);
-      toast.success(`"${name}" deleted`);
-    }
+  const confirmDelete = () => {
+    deleteLocation(deleteModal.id);
+    toast.success(`"${deleteModal.name}" deleted successfully`);
+    setDeleteModal({ isOpen: false, id: '', name: '' });
   };
 
   return (
@@ -110,6 +114,33 @@ export default function DashboardPage() {
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="p-6 lg:p-14 w-full"
     >
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteModal.isOpen && (
+          <div className="fixed inset-0 z-[110] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="w-full max-w-sm bg-[#111827] border border-red-500/30 rounded-3xl p-6 shadow-[0_0_40px_rgba(239,68,68,0.2)] text-center relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-500 to-rose-500" />
+              <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+                <AlertTriangle className="w-8 h-8 text-red-500" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Delete Location?</h3>
+              <p className="text-slate-400 text-sm mb-6">
+                Are you sure you want to delete <span className="font-semibold text-white">"{deleteModal.name}"</span>? This action cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <button onClick={() => setDeleteModal({ isOpen: false, id: '', name: '' })} className="flex-1 py-2.5 rounded-xl border border-white/10 text-slate-300 hover:bg-white/5 transition-colors font-medium">Cancel</button>
+                <button onClick={confirmDelete} className="flex-1 py-2.5 rounded-xl bg-red-500 text-white font-bold hover:bg-red-600 transition-colors shadow-[0_0_15px_rgba(239,68,68,0.4)]">Delete</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Add/Edit Modal */}
       <AnimatePresence>
         {showAddModal && (
@@ -132,41 +163,41 @@ export default function DashboardPage() {
                   <label className="text-xs text-slate-400 mb-1.5 block font-semibold uppercase tracking-wider">Name</label>
                   <input value={formData.name} onChange={e => setFormData(p => ({...p, name: e.target.value}))}
                     placeholder="e.g. Royal Yurt V2"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-cyan-500/50" />
+                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-cyan-500/50 transition-colors" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs text-slate-400 mb-1.5 block font-semibold uppercase tracking-wider">Type</label>
                     <select value={formData.type} onChange={e => setFormData(p => ({...p, type: e.target.value as LocationType}))}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white outline-none">
+                      className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white outline-none transition-colors">
                       {LOCATION_TYPES.map(t => <option key={t} value={t} className="bg-[#111827]">{t}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="text-xs text-slate-400 mb-1.5 block font-semibold uppercase tracking-wider">Price / Hour ($)</label>
                     <input type="number" value={formData.pricePerHour} onChange={e => setFormData(p => ({...p, pricePerHour: Number(e.target.value)}))}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-cyan-500/50" />
+                      className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-cyan-500/50 transition-colors" />
                   </div>
                 </div>
 
                 <div>
                   <label className="text-xs text-slate-400 mb-1.5 block font-semibold uppercase tracking-wider">Capacity (guests)</label>
                   <input type="number" value={formData.capacity} onChange={e => setFormData(p => ({...p, capacity: Number(e.target.value)}))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-cyan-500/50" />
+                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-cyan-500/50 transition-colors" />
                 </div>
 
                 <div>
                   <label className="text-xs text-slate-400 mb-1.5 block font-semibold uppercase tracking-wider">Features (comma-separated)</label>
                   <input value={formData.features} onChange={e => setFormData(p => ({...p, features: e.target.value}))}
                     placeholder="Wi-Fi, BBQ Grill, Smart TV"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-cyan-500/50" />
+                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-cyan-500/50 transition-colors" />
                 </div>
               </div>
 
               <div className="flex gap-3 mt-8">
-                <button onClick={() => setShowAddModal(false)} className="flex-1 py-3 rounded-xl border border-white/10 text-slate-300 hover:bg-white/5 transition-colors">Cancel</button>
-                <button onClick={handleSave} className="flex-1 py-3 rounded-xl bg-white text-black font-bold hover:bg-slate-200 transition-colors flex items-center justify-center gap-2">
+                <button onClick={() => setShowAddModal(false)} className="flex-1 py-3 rounded-xl border border-white/10 text-slate-300 hover:bg-white/5 transition-colors font-medium">Cancel</button>
+                <button onClick={handleSave} className="flex-1 py-3 rounded-xl bg-white text-black font-bold hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.2)]">
                   <Save className="w-4 h-4" />{editingId ? 'Update' : 'Add Location'}
                 </button>
               </div>
@@ -197,7 +228,7 @@ export default function DashboardPage() {
         ].map((stat, i) => (
           <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
             className={`glass-card p-5 flex items-center gap-4 border-l-4 ${stat.border}`}>
-            <div className={`w-10 h-10 rounded-full bg-${stat.color}-500/20 flex items-center justify-center`}>
+            <div className={`w-10 h-10 rounded-full bg-${stat.color}-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(var(--color-${stat.color}-500),0.3)]`}>
               <stat.icon className={`w-5 h-5 text-${stat.color}-400`} />
             </div>
             <div>
@@ -211,9 +242,9 @@ export default function DashboardPage() {
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
         <div className="glass-panel p-6">
-          <h3 className="text-lg font-semibold text-white mb-6">Revenue (This Week)</h3>
+          <h3 className="text-lg font-semibold text-white mb-6">Revenue (Last 7 Days)</h3>
           <ResponsiveContainer width="100%" height={240}>
-            <AreaChart data={MOCK_CHART_DATA}>
+            <AreaChart data={chartData}>
               <defs>
                 <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#06B6D4" stopOpacity={0.3}/>
@@ -229,9 +260,9 @@ export default function DashboardPage() {
         </div>
 
         <div className="glass-panel p-6">
-          <h3 className="text-lg font-semibold text-white mb-6">Bookings (This Week)</h3>
+          <h3 className="text-lg font-semibold text-white mb-6">Bookings (Last 7 Days)</h3>
           <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={MOCK_CHART_DATA}>
+            <BarChart data={chartData}>
               <XAxis dataKey="name" stroke="#475569" tick={{ fontSize: 12 }} />
               <YAxis stroke="#475569" tick={{ fontSize: 12 }} />
               <Tooltip contentStyle={{ backgroundColor: '#0A0A0A', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff' }} />
@@ -264,15 +295,15 @@ export default function DashboardPage() {
                       <span className="font-semibold text-white text-sm">{loc.name}</span>
                     </div>
                   </td>
-                  <td className="py-4 pr-6"><span className="text-xs px-2 py-1 rounded-md bg-white/5 text-slate-300">{loc.type}</span></td>
+                  <td className="py-4 pr-6"><span className="text-xs px-2 py-1 rounded-md bg-white/5 text-slate-300 border border-white/5">{loc.type}</span></td>
                   <td className="py-4 pr-6 text-white font-bold">${loc.pricePerHour}</td>
                   <td className="py-4 pr-6 text-slate-300">{loc.capacity}</td>
                   <td className="py-4 pr-6">
-                    <span className="text-yellow-400 font-bold">★ {loc.rating}</span>
+                    <span className="text-yellow-400 font-bold">★ {loc.rating.toFixed(1)}</span>
                   </td>
                   <td className="py-4 pr-6">
                     <button onClick={() => updateLocation(loc.id, { isActive: !loc.isActive })}
-                      className={`text-xs px-2 py-1 rounded-full font-semibold flex items-center gap-1 ${loc.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                      className={`text-xs px-2.5 py-1 rounded-full font-semibold flex items-center gap-1.5 transition-colors ${loc.isActive ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'}`}>
                       {loc.isActive ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
                       {loc.isActive ? 'Active' : 'Hidden'}
                     </button>
@@ -282,7 +313,7 @@ export default function DashboardPage() {
                       <button onClick={() => openEditModal(loc)} className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center hover:bg-blue-500/20 transition-colors">
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
-                      <button onClick={() => handleDelete(loc.id, loc.name)} className="w-8 h-8 rounded-lg bg-red-500/10 text-red-400 flex items-center justify-center hover:bg-red-500/20 transition-colors">
+                      <button onClick={() => setDeleteModal({ isOpen: true, id: loc.id, name: loc.name })} className="w-8 h-8 rounded-lg bg-red-500/10 text-red-400 flex items-center justify-center hover:bg-red-500/20 transition-colors">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -301,7 +332,7 @@ export default function DashboardPage() {
           <div className="mb-4">
             <label className="text-slate-400 text-xs mb-2 block font-semibold uppercase">Select Location</label>
             <select value={selectedLocation} onChange={(e) => setSelectedLocation(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-cyan-500/50">
+              className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-cyan-500/50 transition-colors">
               {locations.map(loc => <option key={loc.id} value={loc.id} className="bg-[#111827] text-white">{loc.name}</option>)}
             </select>
           </div>
@@ -320,10 +351,10 @@ export default function DashboardPage() {
             return (
               <div className="mt-4 grid grid-cols-3 gap-2">
                 {loc.images.map((img, i) => (
-                  <div key={i} className="relative group rounded-xl overflow-hidden aspect-square">
+                  <div key={i} className="relative group rounded-xl overflow-hidden aspect-square border border-white/10">
                     <img src={img} className="w-full h-full object-cover" loading="lazy" alt="" />
                     <button onClick={() => deletePhoto(loc.id, i)}
-                      className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
                       <Trash2 className="w-5 h-5 text-red-400" />
                     </button>
                   </div>
@@ -335,12 +366,12 @@ export default function DashboardPage() {
 
         <div className="glass-panel p-6">
           <h3 className="text-lg font-semibold text-white mb-6">Live Activity Feed</h3>
-          <div className="flex flex-col gap-3 max-h-[400px] overflow-y-auto">
+          <div className="flex flex-col gap-3 max-h-[400px] overflow-y-auto pr-2" style={{scrollbarWidth:'thin', scrollbarColor:'rgba(255,255,255,0.1) transparent'}}>
             {activities.length === 0 ? (
               <div className="text-center text-slate-500 py-8">No activity yet</div>
             ) : activities.map((activity) => (
               <div key={activity.id} className="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
-                <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse mt-1.5 flex-shrink-0" />
+                <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse mt-1.5 flex-shrink-0 shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
                 <div className="flex-1 text-sm text-slate-300">{activity.message}</div>
                 <div className="text-xs text-slate-500 font-medium whitespace-nowrap">{activity.time}</div>
               </div>
@@ -373,7 +404,7 @@ export default function DashboardPage() {
                       <td className="py-3 pr-6 text-slate-300 text-sm">{b.startHour}:00 – {b.endHour}:00</td>
                       <td className="py-3 pr-6 text-white font-bold">${b.totalPrice}</td>
                       <td className="py-3 pr-6">
-                        <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${b.status === 'CONFIRMED' ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'}`}>
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${b.status === 'CONFIRMED' ? 'bg-green-500/15 text-green-400 border border-green-500/20' : 'bg-red-500/15 text-red-400 border border-red-500/20'}`}>
                           {b.status}
                         </span>
                       </td>

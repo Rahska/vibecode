@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import { Sidebar } from "@/components/sidebar";
 import { MobileNav } from "@/components/mobile-nav";
 import { CommandMenu } from "@/components/command-menu";
+import { PageTransition } from "@/components/page-transition";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
@@ -38,7 +39,9 @@ export default function RootLayout({
 
             <Sidebar />
             <main className="flex-1 h-screen overflow-y-auto pb-24 md:pb-0 z-10">
-              {children}
+              <PageTransition>
+                {children}
+              </PageTransition>
             </main>
             <MobileNav />
           </div>

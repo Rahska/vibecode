@@ -3,7 +3,7 @@
 import { useRahatStore } from "@/lib/store";
 import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { ChevronLeft, Star, Users, MapPin, Heart, Send } from "lucide-react";
+import { ChevronLeft, ChevronRight, Star, Users, MapPin, Heart, Send, Share2 } from "lucide-react";
 import Link from "next/link";
 import { BookingWidget } from "@/components/booking-widget";
 import { toast } from "sonner";
@@ -13,13 +13,10 @@ import { PageSkeleton } from "@/components/page-skeleton";
 export default function LocationDetails() {
   const params = useParams();
   const id = params.id as string;
-  const location = useRahatStore(state => state.locations.find(l => l.id === id));
-  const favorites = useRahatStore(state => state.favorites);
-  const reviews = useRahatStore(state => state.reviews.filter(r => r.locationId === id));
-  const profile = useRahatStore(state => state.profile);
-  const toggleFavorite = useRahatStore(state => state.toggleFavorite);
-  const addReview = useRahatStore(state => state.addReview);
-  const addRecentlyViewed = useRahatStore(state => state.addRecentlyViewed);
+  const { locations, favorites, reviews: allReviews, profile, toggleFavorite, addReview, addRecentlyViewed } = useRahatStore();
+  
+  const location = locations.find(l => l.id === id);
+  const reviews = allReviews.filter(r => r.locationId === id);
 
   const [activeImage, setActiveImage] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -30,7 +27,7 @@ export default function LocationDetails() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 800);
+    }, 400); // reduced from 800
     return () => clearTimeout(timer);
   }, []);
 
@@ -65,6 +62,12 @@ export default function LocationDetails() {
     }
   };
 
+  const handleShare = (e: React.MouseEvent) => {
+    e.preventDefault();
+    navigator.clipboard.writeText(window.location.href);
+    toast.success("Link copied to clipboard!");
+  };
+
   const handleSubmitReview = () => {
     if (!reviewText.trim()) {
       toast.error("Please write a review first");
@@ -82,6 +85,25 @@ export default function LocationDetails() {
     setReviewRating(5);
     toast.success("Review submitted! Thank you.");
   };
+
+  const nextImage = () => {
+    setActiveImage((prev) => (prev + 1) % location.images.length);
+  };
+
+  const prevImage = () => {
+    setActiveImage((prev) => (prev - 1 + location.images.length) % location.images.length);
+  };
+
+  // Find similar locations for Recommended section
+  const recommended = locations
+    .filter(l => l.id !== id && l.type === location.type)
+    .slice(0, 3);
+  
+  if (recommended.length < 3) {
+    // Fill up if not enough of same type
+    const others = locations.filter(l => l.id !== id && !recommended.find(r => r.id === l.id));
+    recommended.push(...others.slice(0, 3 - recommended.length));
+  }
 
   return (
     <motion.div 
@@ -104,19 +126,44 @@ export default function LocationDetails() {
             className="w-full h-[400px] lg:h-[500px] rounded-[2rem] overflow-hidden relative mb-4 group"
           >
             <img 
+              key={activeImage}
               src={location.images[activeImage] || 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=1000'} 
-              className="w-full h-full object-cover transition-all duration-500"
-              alt={location.name}
-              loading="lazy"
+              className="w-full h-full object-cover transition-opacity duration-500 animate-in fade-in"
+              alt={`${location.name} - image ${activeImage + 1}`}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-transparent to-transparent opacity-60" />
             
-            <button 
-              onClick={handleFavorite}
-              className="absolute top-6 right-6 w-12 h-12 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors z-10"
-            >
-              <Heart className={`w-5 h-5 ${isFav ? 'fill-red-500 text-red-500' : 'text-white'}`} />
-            </button>
+            {/* Image counter */}
+            <div className="absolute top-6 left-6 px-3 py-1.5 bg-black/50 backdrop-blur-md rounded-full text-xs font-bold text-white border border-white/10 z-10">
+              {activeImage + 1} / {location.images.length || 1}
+            </div>
+
+            <div className="absolute top-6 right-6 flex gap-2 z-10">
+              <button 
+                onClick={handleShare}
+                className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors"
+                title="Share"
+              >
+                <Share2 className="w-5 h-5 text-white" />
+              </button>
+              <button 
+                onClick={handleFavorite}
+                className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors"
+              >
+                <Heart className={`w-5 h-5 ${isFav ? 'fill-red-500 text-red-500' : 'text-white'}`} />
+              </button>
+            </div>
+
+            {location.images.length > 1 && (
+              <>
+                <button onClick={prevImage} className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/10">
+                  <ChevronLeft className="w-6 h-6 text-white" />
+                </button>
+                <button onClick={nextImage} className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/10">
+                  <ChevronRight className="w-6 h-6 text-white" />
+                </button>
+              </>
+            )}
 
             <div className="absolute bottom-6 left-6 z-10">
               <span className="px-3 py-1.5 bg-black/50 backdrop-blur-md rounded-full text-xs font-bold text-cyan-400 border border-cyan-500/20">
@@ -161,10 +208,7 @@ export default function LocationDetails() {
           <div className="glass-card p-6 mb-8">
             <h3 className="text-xl font-semibold text-white mb-4">About This Place</h3>
             <p className="text-slate-400 leading-relaxed text-base">
-              Experience ultimate luxury in our premium {location.name}. Perfect for corporate events, 
-              family gatherings, or romantic getaways. Enjoy breathtaking views of the Almaty mountains, 
-              high-end service, and absolute privacy. Every detail is carefully designed to provide 
-              an unforgettable premium stay in the heart of Kazakhstan&apos;s nature.
+              {location.description || `Experience ultimate luxury in our premium ${location.name}. Perfect for corporate events, family gatherings, or romantic getaways. Enjoy breathtaking views of the Almaty mountains, high-end service, and absolute privacy. Every detail is carefully designed to provide an unforgettable premium stay in the heart of Kazakhstan's nature.`}
             </p>
           </div>
 
@@ -262,6 +306,32 @@ export default function LocationDetails() {
               </button>
             </div>
           </div>
+          
+          {/* Recommended Section */}
+          {recommended.length > 0 && (
+            <div className="mt-16 mb-8 border-t border-white/10 pt-10">
+              <h3 className="text-2xl font-semibold text-white mb-6">You might also like</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {recommended.map(rec => (
+                  <Link href={`/location/${rec.id}`} key={rec.id} className="block group">
+                    <div className="glass-card p-2 border-white/5 hover:border-white/20">
+                      <div className="w-full h-32 rounded-xl overflow-hidden mb-3 relative">
+                        <img src={rec.images[0]} alt={rec.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-black/60 backdrop-blur-md px-2 py-1 rounded-full border border-white/10">
+                          <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                          <span className="text-[10px] font-semibold text-white">{rec.rating.toFixed(1)}</span>
+                        </div>
+                      </div>
+                      <div className="px-1 pb-1">
+                        <p className="text-white font-semibold text-sm truncate">{rec.name}</p>
+                        <p className="text-slate-400 text-xs">${rec.pricePerHour}/hr</p>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div>
