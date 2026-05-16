@@ -1,11 +1,12 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { useOrbitaStore, Location } from "@/lib/store";
+import { useOrbitaStore, Location, Booking } from "@/lib/store";
 import { MapPin, ArrowRight, X, Star, Users, Crosshair, Save } from "lucide-react";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 const TYPE_LABELS: Record<string, string> = {
   'YURT': 'Юрта',
@@ -27,13 +28,28 @@ const INITIAL_COORDS: Record<string, { x: number; y: number; color: string }> = 
 };
 
 export default function MapPage() {
-  const { locations, isAdminLoggedIn } = useOrbitaStore();
+  const { locations, isAdminLoggedIn, bookings } = useOrbitaStore();
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [tempCoords, setTempCoords] = useState<Record<string, {x: number, y: number}>>({});
+  const [scale, setScale] = useState(1);
   
   const mapRef = useRef<HTMLDivElement>(null);
   const selectedLocData = locations.find(l => l.id === selectedLocation);
+
+  const isOccupiedNow = (locationId: string) => {
+    const now = new Date();
+    const currentDate = format(now, 'yyyy-MM-dd');
+    const currentHour = now.getHours();
+    
+    return bookings.some(b => 
+      b.locationId === locationId && 
+      b.date === currentDate && 
+      currentHour >= b.startHour && 
+      currentHour < b.endHour && 
+      b.status === 'CONFIRMED'
+    );
+  };
 
   const getTypeColor = (type: string) => {
     switch (type) {
@@ -113,6 +129,13 @@ export default function MapPage() {
           onClick={handleMapClick}
           className={`flex-1 glass-panel rounded-[2.5rem] relative overflow-hidden bg-[#0A0A0A]/50 border-white/5 min-h-[500px] ${isEditMode ? 'cursor-crosshair ring-2 ring-cyan-500/50' : ''}`}
         >
+          {/* Zoom controls */}
+          <div className="absolute bottom-6 right-6 z-20 flex flex-col gap-2">
+            <button onClick={() => setScale(s => Math.min(s + 0.25, 2.5))} className="w-10 h-10 bg-black/50 border border-white/10 rounded-xl flex items-center justify-center text-white backdrop-blur-md hover:bg-white/10 transition-colors">+</button>
+            <button onClick={() => setScale(s => Math.max(s - 0.25, 0.5))} className="w-10 h-10 bg-black/50 border border-white/10 rounded-xl flex items-center justify-center text-white backdrop-blur-md hover:bg-white/10 transition-colors">-</button>
+          </div>
+
+          <motion.div animate={{ scale }} className="w-full h-full absolute inset-0 origin-center transition-transform">
           {/* Легенда */}
           <div className="absolute top-6 left-6 z-20 glass-card p-5 rounded-[1.5rem] flex flex-col gap-4 backdrop-blur-xl border-white/10">
             <h3 className="text-white text-[10px] font-bold uppercase tracking-[0.2em] opacity-50 mb-1">Легенда</h3>
@@ -146,7 +169,8 @@ export default function MapPage() {
             const x = temp?.x ?? predefined?.x ?? randomX;
             const y = temp?.y ?? predefined?.y ?? randomY;
             const color = predefined?.color ?? getTypeColor(loc.type);
-            const isSelected = selectedLocation === loc.id;
+            const occupied = isOccupiedNow(loc.id);
+            const statusIndicator = occupied ? 'bg-red-500' : 'bg-emerald-500';
 
             return (
               <motion.div
@@ -156,7 +180,8 @@ export default function MapPage() {
                 style={{ left: `${x}%`, top: `${y}%`, transform: 'translate(-50%, -50%)' }}
                 onClick={(e) => { e.stopPropagation(); setSelectedLocation(isSelected ? null : loc.id); }}
               >
-                <div className={`absolute inset-0 rounded-full ${color} opacity-20 animate-ping`} />
+                <div className={`absolute -inset-2 rounded-full ${statusIndicator} opacity-20 animate-ping`} />
+                <div className={`absolute -inset-1 rounded-full border border-${statusIndicator} opacity-50`} />
                 <div className={`relative w-10 h-10 rounded-full ${color} flex items-center justify-center shadow-2xl cursor-pointer hover:scale-125 transition-all duration-300 border-2 ${isSelected ? 'scale-125 ring-8 ring-white/10 border-white' : 'border-black/20'}`}>
                   <MapPin className="w-5 h-5 text-black" />
                 </div>
@@ -182,6 +207,7 @@ export default function MapPage() {
               Нажмите на карту, чтобы установить новую позицию для {selectedLocData?.name}
             </div>
           )}
+          </motion.div>
         </motion.div>
 
         {/* Инфо-панель */}

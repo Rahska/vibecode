@@ -13,7 +13,8 @@ import {
   Edit3, 
   Trash2,
   Settings as SettingsIcon,
-  MessageSquare
+  MessageSquare,
+  Activity as ActivityIcon
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -29,6 +30,8 @@ import {
   Area 
 } from 'recharts';
 import Link from "next/link";
+import { LocationEditorModal } from "@/components/admin/location-editor-modal";
+import { Location } from "@/lib/store";
 
 const data = [
   { name: 'Пн', bookings: 12, revenue: 180000 },
@@ -49,11 +52,13 @@ export default function AdminPage() {
     reviews, 
     settings,
     deleteLocation,
-    deleteReview
+    deleteReview,
+    activities
   } = useOrbitaStore();
   
   const [pin, setPin] = useState("");
   const [activeTab, setActiveTab] = useState<'STATS' | 'LOCATIONS' | 'REVIEWS'>('STATS');
+  const [editingLocation, setEditingLocation] = useState<Location | null>(null);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -211,7 +216,10 @@ export default function AdminPage() {
                     </div>
                   </div>
                   <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center hover:bg-white/10 text-white transition-all">
+                    <button 
+                      onClick={() => setEditingLocation(loc)}
+                      className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center hover:bg-white/10 text-white transition-all"
+                    >
                       <Edit3 className="w-4 h-4" />
                     </button>
                     <button 
@@ -257,6 +265,21 @@ export default function AdminPage() {
             </div>
           </div>
 
+          <div className="glass-panel p-8 border-white/5">
+            <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+              <ActivityIcon className="w-5 h-5 text-blue-400" /> История действий
+            </h3>
+            <div className="space-y-4">
+              {activities.slice(0, 5).map(activity => (
+                <div key={activity.id} className="pb-4 border-b border-white/5 last:border-0 last:pb-0">
+                  <p className="text-xs text-white mb-1">{activity.message}</p>
+                  <span className="text-[10px] text-slate-500 uppercase tracking-widest">{activity.time}</span>
+                </div>
+              ))}
+              {activities.length === 0 && <p className="text-xs text-slate-500">Нет действий</p>}
+            </div>
+          </div>
+
           <div className="glass-panel p-8 border-white/5 bg-orange-500/5">
             <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-orange-400" /> Статус системы
@@ -274,6 +297,11 @@ export default function AdminPage() {
           </div>
         </div>
       </div>
+      <LocationEditorModal 
+        isOpen={!!editingLocation}
+        location={editingLocation}
+        onClose={() => setEditingLocation(null)}
+      />
     </div>
   );
 }

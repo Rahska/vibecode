@@ -10,7 +10,8 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Info,
-  CheckCircle2
+  CheckCircle2,
+  ArrowRight
 } from "lucide-react";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isBefore, startOfToday, addDays } from "date-fns";
 import { ru } from "date-fns/locale";
@@ -24,7 +25,7 @@ interface BookingWidgetProps {
 }
 
 export function BookingWidget({ locationId, pricePerHour, locationName }: BookingWidgetProps) {
-  const { settings, addBooking } = useOrbitaStore();
+  const { settings, addBooking, bookings } = useOrbitaStore();
   
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -59,6 +60,13 @@ export function BookingWidget({ locationId, pricePerHour, locationName }: Bookin
 
   const totalPrice = selectedSlots.length * pricePerHour;
 
+  const selectedDateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null;
+  const locationBookings = bookings.filter(b => b.locationId === locationId && b.date === selectedDateStr && b.status !== 'CANCELLED');
+
+  const isOccupied = (hour: number) => {
+    return locationBookings.some(b => hour >= b.startHour && hour < b.endHour);
+  };
+
   const handleWhatsApp = () => {
     if (!selectedDate || selectedSlots.length === 0) {
       toast.error("Выберите дату и время");
@@ -87,7 +95,7 @@ export function BookingWidget({ locationId, pricePerHour, locationName }: Bookin
     addBooking({
       id: Math.random().toString(36).substr(2, 9),
       locationId,
-      date: format(selectedDate, 'yyyy-MM-DD'),
+      date: format(selectedDate, 'yyyy-MM-dd'),
       startHour: selectedSlots[0],
       endHour: selectedSlots[selectedSlots.length - 1] + 1,
       totalPrice,
@@ -97,7 +105,8 @@ export function BookingWidget({ locationId, pricePerHour, locationName }: Bookin
       customerPhone
     });
 
-    window.open(`https://wa.me/${settings.whatsappNumber}?text=${message}`, '_blank');
+    const phone = settings.whatsappNumber.replace(/\D/g, '');
+    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
     toast.success("Запрос отправлен в WhatsApp!");
   };
 
@@ -179,14 +188,18 @@ export function BookingWidget({ locationId, pricePerHour, locationName }: Bookin
                   <div className="grid grid-cols-4 gap-2">
                     {slots.map(hour => {
                       const isSelected = selectedSlots.includes(hour);
+                      const occupied = isOccupied(hour);
                       return (
                         <button
                           key={hour}
+                          disabled={occupied}
                           onClick={() => handleSlotClick(hour)}
                           className={`h-12 rounded-xl text-xs font-bold transition-all border ${
-                            isSelected 
-                              ? 'bg-white text-black border-white shadow-lg' 
-                              : 'bg-white/5 border-white/5 text-slate-400 hover:border-white/20'
+                            occupied
+                              ? 'bg-red-500/10 text-red-500/50 border-red-500/10 cursor-not-allowed'
+                              : isSelected 
+                                ? 'bg-white text-black border-white shadow-lg' 
+                                : 'bg-white/5 border-white/5 text-slate-400 hover:border-white/20'
                           }`}
                         >
                           {hour}:00
