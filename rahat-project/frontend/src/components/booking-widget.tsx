@@ -41,8 +41,22 @@ export function BookingWidget({ locationId, pricePerHour, locationName }: Bookin
     start: startOfMonth(currentMonth),
     end: endOfMonth(currentMonth),
   });
+  
+  const startingDayIndex = startOfMonth(currentMonth).getDay() === 0 ? 6 : startOfMonth(currentMonth).getDay() - 1;
 
   const slots = Array.from({ length: 14 }, (_, i) => i + 9); // 09:00 - 22:00
+
+  const getDayStatus = (date: Date) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const dayBookings = isMounted ? bookings.filter(b => b.locationId === locationId && b.date === dateStr && b.status !== 'CANCELLED') : [];
+    if (dayBookings.length === 0) return 'FREE';
+    
+    let bookedHours = 0;
+    dayBookings.forEach(b => { bookedHours += (b.endHour - b.startHour); });
+    
+    if (bookedHours >= 14) return 'BUSY';
+    return 'PARTIAL';
+  };
 
   const handleSlotClick = (hour: number) => {
     if (selectedSlots.includes(hour)) {
@@ -120,45 +134,59 @@ export function BookingWidget({ locationId, pricePerHour, locationName }: Bookin
         >
               {/* Календарь */}
               <div>
-                <div className="flex justify-between items-center mb-6">
-                  <h4 className="text-white font-bold text-lg flex items-center gap-2">
-                    <CalendarIcon className="w-5 h-5 text-orange-500" /> Выберите дату
+                <div className="flex justify-between items-center mb-6 sticky top-0 bg-[#111827] z-10 py-2">
+                  <h4 className="text-white font-bold text-xl flex items-center gap-2 capitalize">
+                    {format(currentMonth, 'LLLL yyyy', { locale: ru })}
                   </h4>
                   <div className="flex gap-1">
-                    <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-2 rounded-lg hover:bg-white/5 text-slate-400 transition-colors">
-                      <ChevronLeft className="w-4 h-4" />
+                    <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-2 rounded-xl hover:bg-white/5 text-slate-400 transition-colors">
+                      <ChevronLeft className="w-5 h-5" />
                     </button>
-                    <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="p-2 rounded-lg hover:bg-white/5 text-slate-400 transition-colors">
-                      <ChevronRight className="w-4 h-4" />
+                    <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="p-2 rounded-xl hover:bg-white/5 text-slate-400 transition-colors">
+                      <ChevronRight className="w-5 h-5" />
                     </button>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-7 gap-2 mb-4">
+                <div className="grid grid-cols-7 gap-2 mb-2">
                   {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(d => (
-                    <div key={d} className="text-center text-[10px] font-bold text-slate-600 uppercase tracking-widest">{d}</div>
+                    <div key={d} className="text-center text-[10px] font-bold text-slate-500 uppercase tracking-widest">{d}</div>
                   ))}
                 </div>
 
-                <div className="flex gap-2 overflow-x-auto pb-4 hide-scrollbar snap-x snap-mandatory scroll-smooth touch-pan-x">
+                <div className="grid grid-cols-7 gap-2 mb-6">
+                  {Array.from({ length: startingDayIndex }).map((_, i) => (
+                    <div key={`empty-${i}`} />
+                  ))}
                   {daysInMonth.map((day, i) => {
                     const isSelected = selectedDate && isSameDay(day, selectedDate);
                     const isDisabled = isBefore(day, today);
+                    const status = isDisabled ? 'DISABLED' : getDayStatus(day);
+                    
                     return (
                       <button
                         key={i}
                         disabled={isDisabled}
-                        onClick={() => setSelectedDate(day)}
-                        className={`flex-shrink-0 w-14 h-20 rounded-2xl flex flex-col items-center justify-center transition-all snap-start border ${
+                        onClick={() => {
+                          setSelectedDate(day);
+                          setSelectedSlots([]); // Сбрасываем часы при смене даты
+                        }}
+                        className={`relative aspect-square rounded-2xl flex flex-col items-center justify-center transition-all border ${
                           isSelected 
-                            ? 'bg-orange-500 border-orange-500 text-black shadow-lg shadow-orange-500/20' 
+                            ? 'bg-orange-500 border-orange-500 text-black shadow-[0_0_20px_rgba(249,115,22,0.3)] scale-105 z-10' 
                             : isDisabled
-                              ? 'bg-transparent border-transparent opacity-20 cursor-not-allowed'
-                              : 'bg-white/5 border-white/5 text-slate-300 hover:border-white/20'
+                              ? 'bg-transparent border-transparent opacity-20 cursor-not-allowed text-slate-500'
+                              : 'bg-white/5 border-white/5 text-slate-200 hover:border-white/20 hover:bg-white/10'
                         }`}
                       >
-                        <span className="text-[10px] font-bold uppercase mb-1">{format(day, 'EEE', { locale: ru })}</span>
                         <span className="text-lg font-black">{format(day, 'd')}</span>
+                        
+                        {!isDisabled && !isSelected && (
+                          <div className={`absolute bottom-2 w-1.5 h-1.5 rounded-full ${
+                            status === 'FREE' ? 'bg-emerald-500' :
+                            status === 'PARTIAL' ? 'bg-yellow-400' : 'bg-red-500'
+                          }`} />
+                        )}
                       </button>
                     );
                   })}
@@ -201,13 +229,17 @@ export function BookingWidget({ locationId, pricePerHour, locationName }: Bookin
               <button
                 disabled={!selectedDate || selectedSlots.length === 0}
                 onClick={handleWhatsApp}
-                className={`w-full h-16 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all ${
+                className={`relative w-full h-16 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all duration-300 overflow-hidden group ${
                   selectedDate && selectedSlots.length > 0
-                    ? 'bg-emerald-500 text-white hover:bg-emerald-400 shadow-xl shadow-emerald-500/20'
+                    ? 'bg-gradient-to-r from-emerald-500 to-emerald-400 text-white shadow-[0_0_30px_rgba(16,185,129,0.3)] hover:shadow-[0_0_40px_rgba(16,185,129,0.5)] scale-100 hover:scale-[1.02]'
                     : 'bg-white/5 text-slate-600 cursor-not-allowed border border-white/5'
                 }`}
               >
-                <MessageCircle className="w-6 h-6" /> Написать в WhatsApp
+                {selectedDate && selectedSlots.length > 0 && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
+                )}
+                <MessageCircle className="w-6 h-6 relative z-10" /> 
+                <span className="relative z-10">Связаться в WhatsApp</span>
               </button>
             </motion.div>
 
