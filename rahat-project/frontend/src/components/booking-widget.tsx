@@ -96,7 +96,22 @@ export function BookingWidget({ locationId, pricePerHour, locationName }: Bookin
 
     const timeString = `${selectedSlots[0]}:00 - ${selectedSlots[selectedSlots.length - 1] + 1}:00`;
     const dateString = format(selectedDate, 'dd MMMM yyyy', { locale: ru });
+    const dateFormatted = format(selectedDate, 'yyyy-MM-dd');
     
+    // Sync with Supabase before sending WhatsApp
+    addBooking({
+      id: Math.random().toString(36).substr(2, 9),
+      locationId,
+      date: dateFormatted,
+      startHour: selectedSlots[0],
+      endHour: selectedSlots[selectedSlots.length - 1] + 1,
+      totalPrice,
+      status: 'PENDING',
+      createdAt: Date.now(),
+      customerName: 'Гость (WhatsApp)',
+      customerPhone: 'Ожидается',
+    });
+
     const message = encodeURIComponent(
       `${settings.whatsappMessage}\n\n` +
       `📍 Место: ${locationName || 'ORBITA'}\n` +
@@ -107,6 +122,7 @@ export function BookingWidget({ locationId, pricePerHour, locationName }: Bookin
 
     const phone = settings.whatsappNumber.replace(/\D/g, '');
     window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+    toast.success("Запрос отправлен и сохранен!");
   };
 
   if (!isMounted) {

@@ -1,18 +1,18 @@
-import { createClient, createAdminClient } from "@/lib/supabase/server";
-import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { searchParams } = new URL(request.url);
+  const guestId = searchParams.get('guestId');
+  const cookieStore = await cookies();
+  const isAdmin = cookieStore.get('orbita_admin_session')?.value === 'true';
 
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+  if (!guestId && !isAdmin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let query = supabase.from('bookings').select('*, locations(*)');
   
-  if (profile?.role !== 'admin') {
-    query = query.eq('user_id', user.id);
+  if (!isAdmin) {
+    query = query.eq('guest_id', guestId);
   }
   
   const { data, error } = await query.order('date', { ascending: false });
@@ -22,15 +22,15 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+  const supabase = await createAdminClient(); // Use admin client to allow guest insert
   const body = await request.json();
+  const { guestId, ...bookingData } = body;
+
+  if (!guestId) return NextResponse.json({ error: "Guest ID required" }, { status: 400 });
+
   const { data, error } = await supabase.from('bookings').insert({
-    ...body,
-    user_id: user.id
+    ...bookingData,
+    guest_id: guestId
   }).select().single();
   
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

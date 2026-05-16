@@ -13,8 +13,6 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useOrbitaStore } from "@/lib/store";
-import { useAuthStore } from "@/lib/auth-store";
-import { User as UserIcon, LogIn } from "lucide-react";
 
 const USER_NAV = [
   { icon: Compass, label: "Обзор", href: "/" },
@@ -32,15 +30,12 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { isAdminLoggedIn, logoutAdmin, settings } = useOrbitaStore();
-  const { user, profile, signOut } = useAuthStore();
 
   const handleLogout = () => {
     logoutAdmin();
-    signOut();
     router.push('/');
+    router.refresh();
   };
-
-  const isAdmin = profile?.role === 'admin' || isAdminLoggedIn;
 
   return (
     <motion.aside
@@ -83,7 +78,7 @@ export function Sidebar() {
           </div>
         </div>
 
-        {isAdmin && (
+        {isAdminLoggedIn && (
           <div>
             <div className="px-3 pb-2 text-[10px] font-bold text-orange-500 uppercase tracking-[0.2em] mb-1">Администрирование</div>
             <div className="flex flex-col gap-0.5">
@@ -109,31 +104,27 @@ export function Sidebar() {
       </nav>
 
       <div className="p-4 border-t border-white/5">
-        {user ? (
-          <div className="space-y-2">
-            <Link 
-              href="/profile"
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${pathname === '/profile' ? 'bg-white/5 text-white border border-white/5' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
-            >
-              <UserIcon className="w-4 h-4 shrink-0" />
-              <span>Профиль</span>
-            </Link>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-3 text-sm text-red-400/80 hover:text-red-400 transition-colors w-full px-3 py-2.5 rounded-xl hover:bg-red-500/10 border border-transparent hover:border-red-500/20"
-            >
-              <LogOut className="w-4 h-4 shrink-0" />
-              <span className="font-bold">Выйти</span>
-            </button>
-          </div>
-        ) : (
-          <Link 
-            href="/login"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-black bg-white hover:bg-slate-200 transition-all shadow-xl shadow-white/5"
+        {isAdminLoggedIn ? (
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 text-sm text-red-400/80 hover:text-red-400 transition-colors w-full px-3 py-2.5 rounded-xl hover:bg-red-500/10 border border-transparent hover:border-red-500/20"
           >
-            <LogIn className="w-4 h-4 shrink-0" />
-            <span>Войти в систему</span>
-          </Link>
+            <LogOut className="w-4 h-4 shrink-0" />
+            <span className="font-bold">Выйти из панели</span>
+          </button>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <div className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/5">
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-0.5">Связь с нами</p>
+              <p className="text-xs text-white font-medium">{settings?.whatsappNumber}</p>
+            </div>
+            <Link 
+              href="/login"
+              className="flex items-center gap-2 px-3 py-2 text-[10px] text-slate-600 hover:text-slate-400 transition-colors"
+            >
+              Вход для персонала
+            </Link>
+          </div>
         )}
       </div>
     </motion.aside>

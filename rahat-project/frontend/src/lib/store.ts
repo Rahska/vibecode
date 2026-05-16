@@ -69,6 +69,7 @@ interface OrbitaState {
   activities: Activity[];
   isAdminLoggedIn: boolean;
   settings: AppSettings;
+  guestId: string;
   _hasHydrated: boolean;
 
   // Hydration
@@ -162,6 +163,7 @@ export const useOrbitaStore = create<OrbitaState>()(
       activities: [],
       isAdminLoggedIn: false,
       _hasHydrated: false,
+      guestId: '',
       settings: {
         whatsappNumber: '77001234567',
         whatsappMessage: 'Здравствуйте! Хочу забронировать место в ОРБИТА.',
@@ -177,12 +179,16 @@ export const useOrbitaStore = create<OrbitaState>()(
       loginAdmin: (pin) => {
         if (pin === get().settings.adminPin) {
           set({ isAdminLoggedIn: true });
+          document.cookie = "orbita_admin_session=true; path=/; max-age=86400; SameSite=Lax";
           return true;
         }
         return false;
       },
 
-      logoutAdmin: () => set({ isAdminLoggedIn: false }),
+      logoutAdmin: () => {
+        set({ isAdminLoggedIn: false });
+        document.cookie = "orbita_admin_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      },
 
       updateSettings: (newSettings) => set((state) => ({
         settings: { ...state.settings, ...newSettings }
@@ -199,12 +205,14 @@ export const useOrbitaStore = create<OrbitaState>()(
       })),
 
       addBooking: async (booking) => {
+        const { guestId } = get();
         set((state) => ({ bookings: [booking, ...state.bookings] }));
         try {
           const res = await fetch('/api/bookings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+              guestId,
               location_id: booking.locationId,
               date: booking.date,
               start_hour: booking.startHour,
@@ -217,10 +225,7 @@ export const useOrbitaStore = create<OrbitaState>()(
             }),
           });
           if (!res.ok) throw new Error('Failed to sync booking');
-        } catch (err) {
-          console.error(err);
-          // Optional: rollback if needed
-        }
+        } catch (err) { console.error(err); }
       },
 
       updateBooking: (id, updated) => set((state) => ({
@@ -241,6 +246,7 @@ export const useOrbitaStore = create<OrbitaState>()(
       },
 
       addReview: async (review) => {
+        const { guestId } = get();
         set((state) => {
           const newReviews = [...state.reviews, review];
           const locReviews = newReviews.filter(r => r.locationId === review.locationId);
@@ -256,6 +262,7 @@ export const useOrbitaStore = create<OrbitaState>()(
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+              guestId,
               location_id: review.locationId,
               author: review.author,
               rating: review.rating,
@@ -276,7 +283,8 @@ export const useOrbitaStore = create<OrbitaState>()(
       },
 
       toggleFavorite: async (id) => {
-        const isFavorite = get().favorites.includes(id);
+        const { guestId, favorites } = get();
+        const isFavorite = favorites.includes(id);
         set((state) => ({
           favorites: isFavorite
             ? state.favorites.filter(f => f !== id)
@@ -285,12 +293,12 @@ export const useOrbitaStore = create<OrbitaState>()(
 
         try {
           if (isFavorite) {
-            await fetch(`/api/favorites/${id}`, { method: 'DELETE' });
+            await fetch(`/api/favorites/${id}?guestId=${guestId}`, { method: 'DELETE' });
           } else {
             await fetch('/api/favorites', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ locationId: id }),
+              body: JSON.stringify({ guestId, locationId: id }),
             });
           }
         } catch (err) { console.error(err); }
@@ -327,6 +335,7 @@ export const useOrbitaStore = create<OrbitaState>()(
         activities: state.activities,
         isAdminLoggedIn: state.isAdminLoggedIn,
         settings: state.settings,
+        guestId: state.guestId,
       }),
     }
   )

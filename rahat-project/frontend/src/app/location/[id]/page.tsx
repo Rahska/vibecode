@@ -71,19 +71,37 @@ export default function LocationDetails() {
     window.open(`https://wa.me/${settings?.whatsappNumber}?text=${message}`, '_blank');
   };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    const { guestId } = useOrbitaStore.getState();
+    
     if (reviewPhotos.length + files.length > 5) {
       toast.error("Максимум 5 фотографий");
       return;
     }
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const result = ev.target?.result as string;
-        setReviewPhotos(prev => [...prev, result]);
-      };
-      reader.readAsDataURL(file);
+
+    const uploadPromise = Promise.all(files.map(async (file) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('guestId', guestId);
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error('Ошибка загрузки');
+      const data = await res.json();
+      return data.url;
+    }));
+
+    toast.promise(uploadPromise, {
+      loading: 'Загрузка фотографий...',
+      success: (urls) => {
+        setReviewPhotos(prev => [...prev, ...urls]);
+        return 'Фотографии загружены';
+      },
+      error: 'Не удалось загрузить фото'
     });
   };
 
@@ -92,6 +110,8 @@ export default function LocationDetails() {
       toast.error("Заполните имя и текст отзыва");
       return;
     }
+    const { guestId } = useOrbitaStore.getState();
+    
     addReview({
       id: Math.random().toString(36).substr(2, 9),
       locationId: id,

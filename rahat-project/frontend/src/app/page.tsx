@@ -61,7 +61,7 @@ export default function Home() {
     const matchType = filterTypeValue === null || loc.type === filterTypeValue;
     const matchSearch = loc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       loc.type.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchPrice = loc.pricePerHour <= maxPrice;
+    const matchPrice = (loc.pricePerHour ?? 0) <= maxPrice;
     return matchType && matchSearch && matchPrice;
   });
 
@@ -168,7 +168,7 @@ export default function Home() {
                     <div className="absolute bottom-0 left-0 right-0 p-3">
                       <p className="font-bold text-white text-base truncate">{loc.name}</p>
                       <div className="flex justify-between items-center">
-                        <span className="text-slate-300 text-sm">{settings?.currency}{loc.pricePerHour.toLocaleString()}/ч</span>
+                        <span className="text-slate-300 text-sm">{settings?.currency}{(loc.pricePerHour ?? 0).toLocaleString()}/ч</span>
                         <span className="text-yellow-400 text-sm">★ {loc.rating}</span>
                       </div>
                     </div>
@@ -252,7 +252,7 @@ export default function Home() {
                       <div className="flex justify-between items-start mb-2 gap-2">
                         <h3 className="text-lg font-semibold text-white truncate">{loc.name}</h3>
                         <div className="text-right whitespace-nowrap shrink-0">
-                          <span className="text-base font-bold text-white">{settings?.currency}{loc.pricePerHour.toLocaleString()}</span>
+                          <span className="text-base font-bold text-white">{settings?.currency}{(loc.pricePerHour ?? 0).toLocaleString()}</span>
                           <span className="text-xs text-slate-400">/ч</span>
                         </div>
                       </div>

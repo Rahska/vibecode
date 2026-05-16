@@ -1,16 +1,12 @@
 "use client";
 
-import { Compass, Heart, LayoutDashboard, Map as MapIcon, Settings } from "lucide-react";
+import { Compass, Heart, LayoutDashboard, Map as MapIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useOrbitaStore } from "@/lib/store";
-import { useAuthStore } from "@/lib/auth-store";
-import { User as UserIcon, LogIn } from "lucide-react";
-
 export function MobileNav() {
   const pathname = usePathname();
   const { isAdminLoggedIn } = useOrbitaStore();
-  const { user, profile } = useAuthStore();
 
   const NAV_ITEMS = [
     { icon: Compass, label: "Обзор", href: "/" },
@@ -18,19 +14,10 @@ export function MobileNav() {
     { icon: Heart, label: "Избранное", href: "/favorites" },
   ];
 
-  const isAdmin = profile?.role === 'admin' || isAdminLoggedIn;
-
-  if (isAdmin) {
+  if (isAdminLoggedIn) {
     NAV_ITEMS.push(
       { icon: LayoutDashboard, label: "Админ", href: "/orbita-admin" }
     );
-  }
-
-  // Add Profile or Login as the last item
-  if (user) {
-    NAV_ITEMS.push({ icon: UserIcon, label: "Профиль", href: "/profile" });
-  } else {
-    NAV_ITEMS.push({ icon: LogIn, label: "Войти", href: "/login" });
   }
 
   return (

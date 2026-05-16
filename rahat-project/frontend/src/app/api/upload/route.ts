@@ -2,19 +2,16 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
+    const guestId = formData.get('guestId') as string || 'anonymous';
+    
     if (!file) return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
 
     const adminSupabase = await createAdminClient();
     const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-    const filePath = `uploads/${user.id}/${fileName}`;
+    const filePath = `uploads/${guestId}/${fileName}`;
 
     const { data, error } = await adminSupabase.storage
       .from('orbita-images')
