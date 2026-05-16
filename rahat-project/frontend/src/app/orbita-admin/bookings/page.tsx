@@ -4,12 +4,14 @@ import { useOrbitaStore, Booking } from "@/lib/store";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, Calendar, Search, Filter, MoreVertical, Edit2, CheckCircle, XCircle, MessageCircle, Copy, Save, X, Plus } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 
 export default function AdminBookings() {
+  const router = useRouter();
   const { bookings, locations, settings, updateBooking, addBooking, isAdminLoggedIn } = useOrbitaStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -23,10 +25,13 @@ export default function AdminBookings() {
     locationId: '', date: format(new Date(), 'yyyy-MM-dd'), startHour: 10, endHour: 12, customerName: '', customerPhone: '', deposit: '', totalPrice: 0
   });
 
-  if (!isAdminLoggedIn) {
-    if (typeof window !== 'undefined') window.location.href = '/orbita-admin';
-    return null;
-  }
+  useEffect(() => {
+    if (!isAdminLoggedIn) {
+      router.replace('/orbita-admin');
+    }
+  }, [isAdminLoggedIn, router]);
+
+  if (!isAdminLoggedIn) return null;
 
   const handleStatusChange = (bookingId: string, newStatus: Booking['status']) => {
     updateBooking(bookingId, { status: newStatus });

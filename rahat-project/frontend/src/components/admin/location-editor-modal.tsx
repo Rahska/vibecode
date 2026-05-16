@@ -42,8 +42,9 @@ export function LocationEditorModal({ isOpen, onClose, location }: LocationEdito
   // Autosave
   useEffect(() => {
     if (!formData.id) return;
+    const id = formData.id;
     const timer = setTimeout(() => {
-      updateLocation(formData.id, formData);
+      updateLocation(id, formData);
     }, 500);
     return () => clearTimeout(timer);
   }, [formData, updateLocation]);

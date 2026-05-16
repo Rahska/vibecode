@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 export type LocationType = 'YURT' | 'TAPCHAN' | 'VIP' | 'FIELD' | 'GAZEBO' | 'BBQ';
 
@@ -15,8 +15,8 @@ export interface Location {
   features: string[];
   isActive: boolean;
   glowColor?: string;
-  x?: number; // Map coordinate X %
-  y?: number; // Map coordinate Y %
+  x?: number;
+  y?: number;
 }
 
 export interface Booking {
@@ -26,7 +26,7 @@ export interface Booking {
   startHour: number;
   endHour: number;
   totalPrice: number;
-  deposit?: number;
+  deposit?: string;
   paymentStatus?: 'UNPAID' | 'DEPOSIT_PAID' | 'FULLY_PAID';
   notes?: string;
   status: 'CONFIRMED' | 'CANCELLED' | 'PENDING' | 'COMPLETED';
@@ -42,6 +42,7 @@ export interface Review {
   rating: number;
   text: string;
   date: string;
+  photos?: string[];
 }
 
 export interface Activity {
@@ -68,17 +69,21 @@ interface OrbitaState {
   activities: Activity[];
   isAdminLoggedIn: boolean;
   settings: AppSettings;
+  _hasHydrated: boolean;
+
+  // Hydration
+  setHasHydrated: (state: boolean) => void;
 
   // Admin Actions
   loginAdmin: (pin: string) => boolean;
   logoutAdmin: () => void;
   updateSettings: (settings: Partial<AppSettings>) => void;
-  
+
   // Location CRUD
   addLocation: (location: Location) => void;
   updateLocation: (id: string, location: Partial<Location>) => void;
   deleteLocation: (id: string) => void;
-  
+
   // Booking Management
   addBooking: (booking: Booking) => void;
   updateBooking: (id: string, booking: Partial<Booking>) => void;
@@ -145,10 +150,11 @@ export const useOrbitaStore = create<OrbitaState>()(
       bookings: [],
       favorites: [],
       reviews: [
-        { id: 'r1', locationId: '1', author: 'Алексей', rating: 5, text: 'Отличное место!', date: '2026-05-10' }
+        { id: 'r1', locationId: '1', author: 'Алексей', rating: 5, text: 'Отличное место! Приехали семьёй — все остались довольны.', date: '2026-05-10' }
       ],
       activities: [],
       isAdminLoggedIn: false,
+      _hasHydrated: false,
       settings: {
         whatsappNumber: '77001234567',
         whatsappMessage: 'Здравствуйте! Хочу забронировать место в ОРБИТА.',
@@ -158,6 +164,8 @@ export const useOrbitaStore = create<OrbitaState>()(
         currency: '₸',
         adminPin: '7777'
       },
+
+      setHasHydrated: (state) => set({ _hasHydrated: state }),
 
       loginAdmin: (pin) => {
         if (pin === get().settings.adminPin) {
@@ -174,7 +182,7 @@ export const useOrbitaStore = create<OrbitaState>()(
       })),
 
       addLocation: (loc) => set((state) => ({ locations: [...state.locations, loc] })),
-      
+
       updateLocation: (id, updated) => set((state) => ({
         locations: state.locations.map(l => l.id === id ? { ...l, ...updated } : l)
       })),
@@ -183,8 +191,8 @@ export const useOrbitaStore = create<OrbitaState>()(
         locations: state.locations.filter(l => l.id !== id)
       })),
 
-      addBooking: (booking) => set((state) => ({ 
-        bookings: [booking, ...state.bookings] 
+      addBooking: (booking) => set((state) => ({
+        bookings: [booking, ...state.bookings]
       })),
 
       updateBooking: (id, updated) => set((state) => ({
@@ -199,7 +207,6 @@ export const useOrbitaStore = create<OrbitaState>()(
         const newReviews = [...state.reviews, review];
         const locReviews = newReviews.filter(r => r.locationId === review.locationId);
         const avg = locReviews.reduce((a, b) => a + b.rating, 0) / locReviews.length;
-        
         return {
           reviews: newReviews,
           locations: state.locations.map(l => l.id === review.locationId ? { ...l, rating: Number(avg.toFixed(1)) } : l)
@@ -211,22 +218,37 @@ export const useOrbitaStore = create<OrbitaState>()(
       })),
 
       toggleFavorite: (id) => set((state) => ({
-        favorites: state.favorites.includes(id) 
-          ? state.favorites.filter(f => f !== id) 
+        favorites: state.favorites.includes(id)
+          ? state.favorites.filter(f => f !== id)
           : [...state.favorites, id]
       })),
 
       addActivity: (message) => set((state) => ({
-        activities: [{ id: Math.random().toString(36).substr(2,9), message, time: 'Только что' }, ...state.activities].slice(0, 50)
+        activities: [{ id: Math.random().toString(36).substr(2, 9), message, time: 'Только что' }, ...state.activities].slice(0, 50)
       }))
     }),
     {
-      name: 'orbita-storage-v1',
-      onRehydrateStorage: () => (state, error) => {
-        if (error) {
-          console.error("Critical: Failed to rehydrate local storage, resetting to safe defaults.", error);
-        }
-      }
+      name: 'orbita-storage-v2',
+      storage: createJSONStorage(() => {
+        if (typeof window !== 'undefined') return localStorage;
+        return {
+          getItem: () => null,
+          setItem: () => {},
+          removeItem: () => {},
+        };
+      }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
+      partialize: (state) => ({
+        locations: state.locations,
+        bookings: state.bookings,
+        favorites: state.favorites,
+        reviews: state.reviews,
+        activities: state.activities,
+        isAdminLoggedIn: state.isAdminLoggedIn,
+        settings: state.settings,
+      }),
     }
   )
 );

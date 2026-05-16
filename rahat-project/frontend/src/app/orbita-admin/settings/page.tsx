@@ -14,20 +14,23 @@ import {
   ShieldAlert
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
 export default function AdminSettings() {
   const { settings, updateSettings, isAdminLoggedIn } = useOrbitaStore();
   const router = useRouter();
-  
+
   const [formData, setFormData] = useState<AppSettings>(settings);
 
-  if (!isAdminLoggedIn) {
-    if (typeof window !== 'undefined') router.push('/orbita-admin');
-    return null;
-  }
+  useEffect(() => {
+    if (!isAdminLoggedIn) {
+      router.replace('/orbita-admin');
+    }
+  }, [isAdminLoggedIn, router]);
+
+  if (!isAdminLoggedIn) return null;
 
   const handleSave = () => {
     updateSettings(formData);
