@@ -96,6 +96,13 @@ interface OrbitaState {
   // Interaction
   toggleFavorite: (locationId: string) => void;
   addActivity: (message: string) => void;
+
+  // Setters for external sync
+  setLocations: (locations: Location[]) => void;
+  setBookings: (bookings: Booking[]) => void;
+  setFavorites: (favorites: string[]) => void;
+  setReviews: (reviews: Review[]) => void;
+  setSettings: (settings: AppSettings) => void;
 }
 
 const INITIAL_LOCATIONS: Location[] = [
@@ -191,41 +198,113 @@ export const useOrbitaStore = create<OrbitaState>()(
         locations: state.locations.filter(l => l.id !== id)
       })),
 
-      addBooking: (booking) => set((state) => ({
-        bookings: [booking, ...state.bookings]
-      })),
+      addBooking: async (booking) => {
+        set((state) => ({ bookings: [booking, ...state.bookings] }));
+        try {
+          const res = await fetch('/api/bookings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              location_id: booking.locationId,
+              date: booking.date,
+              start_hour: booking.startHour,
+              end_hour: booking.endHour,
+              total_price: booking.totalPrice,
+              customer_name: booking.customerName,
+              customer_phone: booking.customerPhone,
+              status: booking.status,
+              notes: booking.notes,
+            }),
+          });
+          if (!res.ok) throw new Error('Failed to sync booking');
+        } catch (err) {
+          console.error(err);
+          // Optional: rollback if needed
+        }
+      },
 
       updateBooking: (id, updated) => set((state) => ({
         bookings: state.bookings.map(b => b.id === id ? { ...b, ...updated } : b)
       })),
 
-      cancelBooking: (id) => set((state) => ({
-        bookings: state.bookings.map(b => b.id === id ? { ...b, status: 'CANCELLED' } : b)
-      })),
+      cancelBooking: async (id) => {
+        set((state) => ({
+          bookings: state.bookings.map(b => b.id === id ? { ...b, status: 'CANCELLED' } : b)
+        }));
+        try {
+          await fetch(`/api/bookings/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'CANCELLED' }),
+          });
+        } catch (err) { console.error(err); }
+      },
 
-      addReview: (review) => set((state) => {
-        const newReviews = [...state.reviews, review];
-        const locReviews = newReviews.filter(r => r.locationId === review.locationId);
-        const avg = locReviews.reduce((a, b) => a + b.rating, 0) / locReviews.length;
-        return {
-          reviews: newReviews,
-          locations: state.locations.map(l => l.id === review.locationId ? { ...l, rating: Number(avg.toFixed(1)) } : l)
-        };
-      }),
+      addReview: async (review) => {
+        set((state) => {
+          const newReviews = [...state.reviews, review];
+          const locReviews = newReviews.filter(r => r.locationId === review.locationId);
+          const avg = locReviews.reduce((a, b) => a + b.rating, 0) / locReviews.length;
+          return {
+            reviews: newReviews,
+            locations: state.locations.map(l => l.id === review.locationId ? { ...l, rating: Number(avg.toFixed(1)) } : l)
+          };
+        });
 
-      deleteReview: (id) => set((state) => ({
-        reviews: state.reviews.filter(r => r.id !== id)
-      })),
+        try {
+          await fetch('/api/reviews', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              location_id: review.locationId,
+              author: review.author,
+              rating: review.rating,
+              text: review.text,
+              photos: review.photos,
+            }),
+          });
+        } catch (err) { console.error(err); }
+      },
 
-      toggleFavorite: (id) => set((state) => ({
-        favorites: state.favorites.includes(id)
-          ? state.favorites.filter(f => f !== id)
-          : [...state.favorites, id]
-      })),
+      deleteReview: async (id) => {
+        set((state) => ({
+          reviews: state.reviews.filter(r => r.id !== id)
+        }));
+        try {
+          await fetch(`/api/reviews/${id}`, { method: 'DELETE' });
+        } catch (err) { console.error(err); }
+      },
+
+      toggleFavorite: async (id) => {
+        const isFavorite = get().favorites.includes(id);
+        set((state) => ({
+          favorites: isFavorite
+            ? state.favorites.filter(f => f !== id)
+            : [...state.favorites, id]
+        }));
+
+        try {
+          if (isFavorite) {
+            await fetch(`/api/favorites/${id}`, { method: 'DELETE' });
+          } else {
+            await fetch('/api/favorites', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ locationId: id }),
+            });
+          }
+        } catch (err) { console.error(err); }
+      },
 
       addActivity: (message) => set((state) => ({
         activities: [{ id: Math.random().toString(36).substr(2, 9), message, time: 'Только что' }, ...state.activities].slice(0, 50)
-      }))
+      })),
+
+      setLocations: (locations) => set({ locations }),
+      setBookings: (bookings) => set({ bookings }),
+      setFavorites: (favorites) => set({ favorites }),
+      setReviews: (reviews) => set({ reviews }),
+      setSettings: (settings) => set({ settings })
     }),
     {
       name: 'orbita-storage-v2',

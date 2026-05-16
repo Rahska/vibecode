@@ -8,6 +8,7 @@ import { MobileNav } from "@/components/mobile-nav";
 import { CommandMenu } from "@/components/command-menu";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 import { StoreHydration } from "@/components/store-provider";
+import { DataProvider } from "@/components/data-provider";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
@@ -40,7 +41,8 @@ export default function RootLayout({
       >
         <ThemeContextProvider>
           <StoreHydration />
-          <div className="min-h-screen flex w-full relative overflow-hidden">
+          <DataProvider>
+            <div className="min-h-screen flex w-full relative overflow-hidden">
             {/* Decorative Blur Orbs */}
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-orange-500/5 blur-[120px] pointer-events-none" />
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-rose-500/5 blur-[120px] pointer-events-none" />
@@ -54,6 +56,7 @@ export default function RootLayout({
           <CommandMenu />
           <PWAInstallPrompt />
           <Toaster theme="dark" position="top-right" closeButton richColors />
+          </DataProvider>
         </ThemeContextProvider>
       </body>
     </html>
