@@ -1,8 +1,8 @@
 "use client";
 
 import { useOrbitaStore, Booking } from "@/lib/store";
-import { motion } from "framer-motion";
-import { ChevronLeft, Calendar, Search, Filter, MoreVertical, Edit2, CheckCircle, XCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ChevronLeft, Calendar, Search, Filter, MoreVertical, Edit2, CheckCircle, XCircle, MessageCircle, Copy, Save, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -13,6 +13,9 @@ export default function AdminBookings() {
   const { bookings, locations, settings, updateBooking, isAdminLoggedIn } = useOrbitaStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [editNotes, setEditNotes] = useState("");
+  const [editPaymentStatus, setEditPaymentStatus] = useState<Booking['paymentStatus']>('UNPAID');
 
   if (!isAdminLoggedIn) {
     if (typeof window !== 'undefined') window.location.href = '/orbita-admin';
@@ -32,6 +35,39 @@ export default function AdminBookings() {
     const matchesStatus = statusFilter === "ALL" || b.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const openBookingModal = (b: Booking) => {
+    setSelectedBooking(b);
+    setEditNotes(b.notes || "");
+    setEditPaymentStatus(b.paymentStatus || 'UNPAID');
+  };
+
+  const saveBookingDetails = () => {
+    if (!selectedBooking) return;
+    updateBooking(selectedBooking.id, {
+      notes: editNotes,
+      paymentStatus: editPaymentStatus
+    });
+    toast.success("Детали брони сохранены");
+    setSelectedBooking(null);
+  };
+
+  const copyBookingInfo = (b: Booking, locName: string) => {
+    const text = `Бронь #${b.id}\nЛокация: ${locName}\nКлиент: ${b.customerName} (${b.customerPhone})\nДата: ${b.date}\nВремя: ${b.startHour}:00 - ${b.endHour}:00\nСумма: ${settings.currency}${b.totalPrice}`;
+    navigator.clipboard.writeText(text);
+    toast.success("Скопировано в буфер обмена");
+  };
+
+  const sendWhatsAppTemplate = (b: Booking, locName: string, type: 'confirm' | 'deposit') => {
+    const phone = b.customerPhone.replace(/\D/g, '');
+    let msg = "";
+    if (type === 'confirm') {
+      msg = `Здравствуйте, ${b.customerName}! Ваша бронь в ОРБИТА (${locName}) на ${b.date} с ${b.startHour}:00 до ${b.endHour}:00 успешно подтверждена. Ждем вас!`;
+    } else {
+      msg = `Здравствуйте, ${b.customerName}! Для подтверждения брони в ОРБИТА (${locName}) на ${b.date}, пожалуйста, внесите задаток.`;
+    }
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+  };
 
   return (
     <div className="p-6 lg:p-14 w-full max-w-7xl mx-auto">
@@ -110,6 +146,11 @@ export default function AdminBookings() {
                     </td>
                     <td className="py-4 px-4">
                       <div className="text-sm font-bold text-orange-400">{settings.currency}{booking.totalPrice.toLocaleString()}</div>
+                      <div className="text-[10px] font-bold mt-1">
+                        {booking.paymentStatus === 'FULLY_PAID' ? <span className="text-emerald-500">Оплачено полностью</span> :
+                         booking.paymentStatus === 'DEPOSIT_PAID' ? <span className="text-blue-400">Внесен задаток</span> :
+                         <span className="text-red-400">Не оплачено</span>}
+                      </div>
                       {booking.deposit ? <div className="text-xs text-emerald-500">Задаток: {booking.deposit}</div> : null}
                     </td>
                     <td className="py-4 px-4">
@@ -138,6 +179,20 @@ export default function AdminBookings() {
                         >
                           <XCircle className="w-4 h-4" />
                         </button>
+                        <button 
+                          onClick={() => openBookingModal(booking)}
+                          title="Детали и Финансы"
+                          className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center hover:bg-blue-500/20 text-blue-400"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => copyBookingInfo(booking, loc?.name || '')}
+                          title="Копировать информацию"
+                          className="w-8 h-8 rounded-lg bg-slate-500/10 flex items-center justify-center hover:bg-slate-500/20 text-slate-400"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -155,6 +210,72 @@ export default function AdminBookings() {
           </table>
         </div>
       </div>
+
+      {/* Модальное окно редактирования брони */}
+      <AnimatePresence>
+        {selectedBooking && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setSelectedBooking(null)} />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative w-full max-w-md p-6 glass-panel border border-white/10 rounded-2xl bg-[#0a0a0a]/90">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-white">Детали брони #{selectedBooking.id}</h3>
+                <button onClick={() => setSelectedBooking(null)} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">Статус оплаты</label>
+                  <select 
+                    value={editPaymentStatus || 'UNPAID'} 
+                    onChange={(e) => setEditPaymentStatus(e.target.value as any)}
+                    className="w-full h-12 px-4 bg-white/5 border border-white/10 rounded-xl text-white outline-none"
+                  >
+                    <option value="UNPAID" className="bg-[#111]">🔴 Не оплачено</option>
+                    <option value="DEPOSIT_PAID" className="bg-[#111]">🔵 Внесен задаток</option>
+                    <option value="FULLY_PAID" className="bg-[#111]">🟢 Оплачено полностью</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">Заметки для админа</label>
+                  <textarea 
+                    value={editNotes} 
+                    onChange={(e) => setEditNotes(e.target.value)}
+                    placeholder="Например: Клиент просил дополнительный стул"
+                    rows={4}
+                    className="w-full p-4 bg-white/5 border border-white/10 rounded-xl text-white outline-none resize-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">Быстрые действия (WhatsApp)</label>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => sendWhatsAppTemplate(selectedBooking, locations.find(l => l.id === selectedBooking.locationId)?.name || '', 'confirm')}
+                      className="flex-1 py-2 text-xs font-bold rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 flex items-center justify-center gap-2"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" /> Подтверждение
+                    </button>
+                    <button 
+                      onClick={() => sendWhatsAppTemplate(selectedBooking, locations.find(l => l.id === selectedBooking.locationId)?.name || '', 'deposit')}
+                      className="flex-1 py-2 text-xs font-bold rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 flex items-center justify-center gap-2"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" /> Запросить задаток
+                    </button>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={saveBookingDetails}
+                  className="w-full h-12 bg-white text-black font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors"
+                >
+                  <Save className="w-4 h-4" /> Сохранить изменения
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

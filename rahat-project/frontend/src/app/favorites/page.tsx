@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { Star, Users, Heart } from "lucide-react";
 import { toast } from "sonner";
+import { useState, useEffect } from "react";
 
 const TYPE_LABELS: Record<string, string> = {
   'YURT': 'Юрта', 'TAPCHAN': 'Тапчан', 'VIP': 'VIP',
@@ -12,8 +13,15 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export default function FavoritesPage() {
+  const [isMounted, setIsMounted] = useState(false);
   const { locations, favorites, toggleFavorite, settings } = useOrbitaStore();
   const favoriteLocations = locations.filter(loc => favorites.includes(loc.id));
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) return null;
 
   return (
     <div className="p-6 lg:p-14 w-full">
@@ -52,6 +60,7 @@ export default function FavoritesPage() {
                   <img
                     src={loc.images[0] || 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=1000'}
                     alt={loc.name}
+                    loading="lazy"
                     className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-transparent to-transparent opacity-80" />

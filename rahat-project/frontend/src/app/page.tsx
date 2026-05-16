@@ -32,7 +32,7 @@ const TYPE_FILTER_MAP: Record<string, string | null> = {
 };
 
 export default function Home() {
-  const [isLoading, setIsLoading] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterType>('Все');
   const [searchQuery, setSearchQuery] = useState('');
   const [maxPrice, setMaxPrice] = useState(50000);
@@ -40,9 +40,10 @@ export default function Home() {
   const { locations, favorites, toggleFavorite, bookings, recentlyViewed, settings } = useOrbitaStore();
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 800);
-    return () => clearTimeout(timer);
+    setIsMounted(true);
   }, []);
+
+  if (!isMounted) return <PageSkeleton />;
 
   const handleFavorite = (e: React.MouseEvent, id: string) => {
     e.preventDefault();
@@ -77,7 +78,6 @@ export default function Home() {
     .filter(Boolean)
     .slice(0, 4) as typeof locations;
 
-  if (isLoading) return <PageSkeleton />;
 
   return (
     <motion.div

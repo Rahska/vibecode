@@ -16,7 +16,7 @@ import {
   MessageSquare,
   Activity as ActivityIcon
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { 
   BarChart, 
@@ -44,6 +44,7 @@ const data = [
 ];
 
 export default function AdminPage() {
+  const [isMounted, setIsMounted] = useState(false);
   const { 
     isAdminLoggedIn, 
     loginAdmin, 
@@ -59,6 +60,12 @@ export default function AdminPage() {
   const [pin, setPin] = useState("");
   const [activeTab, setActiveTab] = useState<'STATS' | 'LOCATIONS' | 'REVIEWS'>('STATS');
   const [editingLocation, setEditingLocation] = useState<Location | null>(null);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) return null;
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();

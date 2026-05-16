@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/sidebar";
 import { MobileNav } from "@/components/mobile-nav";
 import { CommandMenu } from "@/components/command-menu";
 import { PageTransition } from "@/components/page-transition";
+import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
@@ -14,6 +15,13 @@ const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
 export const metadata: Metadata = {
   title: "ORBITA — Премиальный отдых",
   description: "Система бронирования лучших мест отдыха в Алматы",
+  manifest: "/manifest.json",
+  themeColor: "#0a0a0a",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "ORBITA",
+  },
 };
 
 export default function RootLayout({
@@ -41,6 +49,7 @@ export default function RootLayout({
             <MobileNav />
           </div>
           <CommandMenu />
+          <PWAInstallPrompt />
           <Toaster theme="dark" position="top-right" closeButton richColors />
         </ThemeContextProvider>
       </body>

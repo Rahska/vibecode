@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Calendar as CalendarIcon, 
@@ -33,6 +33,11 @@ export function BookingWidget({ locationId, pricePerHour, locationName }: Bookin
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [step, setStep] = useState<1 | 2>(1);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const today = startOfToday();
   const daysInMonth = eachDayOfInterval({
@@ -61,7 +66,7 @@ export function BookingWidget({ locationId, pricePerHour, locationName }: Bookin
   const totalPrice = selectedSlots.length * pricePerHour;
 
   const selectedDateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null;
-  const locationBookings = bookings.filter(b => b.locationId === locationId && b.date === selectedDateStr && b.status !== 'CANCELLED');
+  const locationBookings = isMounted ? bookings.filter(b => b.locationId === locationId && b.date === selectedDateStr && b.status !== 'CANCELLED') : [];
 
   const isOccupied = (hour: number) => {
     return locationBookings.some(b => hour >= b.startHour && hour < b.endHour);
@@ -110,6 +115,10 @@ export function BookingWidget({ locationId, pricePerHour, locationName }: Bookin
     toast.success("Запрос отправлен в WhatsApp!");
   };
 
+  if (!isMounted) {
+    return <div className="glass-panel border-white/5 overflow-hidden shadow-2xl bg-[#111827]/50 h-[500px] animate-pulse"></div>;
+  }
+
   return (
     <div className="glass-panel border-white/5 overflow-hidden shadow-2xl bg-[#111827]/50">
       <div className="p-8 border-b border-white/5 bg-white/5">
@@ -154,7 +163,7 @@ export function BookingWidget({ locationId, pricePerHour, locationName }: Bookin
                   ))}
                 </div>
 
-                <div className="flex gap-2 overflow-x-auto pb-4 hide-scrollbar snap-x snap-mandatory">
+                <div className="flex gap-2 overflow-x-auto pb-4 hide-scrollbar snap-x snap-mandatory scroll-smooth touch-pan-x">
                   {daysInMonth.map((day, i) => {
                     const isSelected = selectedDate && isSameDay(day, selectedDate);
                     const isDisabled = isBefore(day, today);
@@ -194,15 +203,17 @@ export function BookingWidget({ locationId, pricePerHour, locationName }: Bookin
                           key={hour}
                           disabled={occupied}
                           onClick={() => handleSlotClick(hour)}
-                          className={`h-12 rounded-xl text-xs font-bold transition-all border ${
+                          className={`relative h-12 rounded-xl text-xs font-bold transition-all border flex items-center justify-center overflow-hidden ${
                             occupied
-                              ? 'bg-red-500/10 text-red-500/50 border-red-500/10 cursor-not-allowed'
+                              ? 'bg-white/[0.02] text-slate-600 border-white/5 cursor-not-allowed'
                               : isSelected 
                                 ? 'bg-white text-black border-white shadow-lg' 
-                                : 'bg-white/5 border-white/5 text-slate-400 hover:border-white/20'
+                                : 'bg-white/5 border-white/10 text-slate-300 hover:border-white/30 hover:bg-white/10'
                           }`}
                         >
-                          {hour}:00
+                          {occupied && <div className="absolute inset-0 flex items-center justify-center"><div className="w-full h-[1px] bg-red-500/50 rotate-[-15deg]"></div></div>}
+                          {!occupied && !isSelected && <div className="absolute top-2 right-2 w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>}
+                          <span className={occupied ? 'opacity-50' : ''}>{hour}:00</span>
                         </button>
                       );
                     })}

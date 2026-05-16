@@ -63,6 +63,7 @@
   html {
     scroll-behavior: smooth;
     height: -webkit-fill-available;
+    overflow-x: hidden;
   }
 
   body {
@@ -120,6 +121,7 @@
   .hide-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
   }
 
   /* Premium Glass Utilities */

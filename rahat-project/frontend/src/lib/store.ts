@@ -27,6 +27,8 @@ export interface Booking {
   endHour: number;
   totalPrice: number;
   deposit?: number;
+  paymentStatus?: 'UNPAID' | 'DEPOSIT_PAID' | 'FULLY_PAID';
+  notes?: string;
   status: 'CONFIRMED' | 'CANCELLED' | 'PENDING' | 'COMPLETED';
   createdAt: number;
   customerName: string;
@@ -220,6 +222,11 @@ export const useOrbitaStore = create<OrbitaState>()(
     }),
     {
       name: 'orbita-storage-v1',
+      onRehydrateStorage: () => (state, error) => {
+        if (error) {
+          console.error("Critical: Failed to rehydrate local storage, resetting to safe defaults.", error);
+        }
+      }
     }
   )
 );

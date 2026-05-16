@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { useDropzone } from "react-dropzone";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Upload, Plus, Trash2, Save, MapPin } from "lucide-react";
 import { Location, useOrbitaStore } from "@/lib/store";
@@ -38,30 +39,45 @@ export function LocationEditorModal({ isOpen, onClose, location }: LocationEdito
     setFormData(location);
   }
 
+  // Autosave
+  useEffect(() => {
+    if (!formData.id) return;
+    const timer = setTimeout(() => {
+      updateLocation(formData.id, formData);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [formData, updateLocation]);
+
   const handleChange = (key: keyof Location, value: any) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Размер файла не должен превышать 2MB");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64String = reader.result as string;
-      setFormData((prev) => ({
-        ...prev,
-        images: [...(prev.images || []), base64String],
-      }));
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    acceptedFiles.forEach((file) => {
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error(`Файл ${file.name} слишком большой`);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setFormData((prev) => ({
+          ...prev,
+          images: [...(prev.images || []), base64String],
+        }));
+      };
+      reader.readAsDataURL(file);
+    });
+    if (acceptedFiles.length > 0) {
       toast.success("Фото загружено");
-    };
-    reader.readAsDataURL(file);
-  };
+    }
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: { 'image/*': [] },
+    multiple: true
+  });
 
   const removeImage = (index: number) => {
     setFormData((prev) => ({
@@ -70,12 +86,10 @@ export function LocationEditorModal({ isOpen, onClose, location }: LocationEdito
     }));
   };
 
-  const handleSave = () => {
-    if (!formData.id) return; // Add location not supported in this basic editor yet, only update
-    
-    updateLocation(formData.id, formData);
-    addActivity(`Обновлена локация: ${formData.name}`);
-    toast.success("Изменения сохранены");
+  const handleClose = () => {
+    if (formData.id) {
+      addActivity(`Обновлена локация: ${formData.name}`);
+    }
     onClose();
   };
 
@@ -99,11 +113,16 @@ export function LocationEditorModal({ isOpen, onClose, location }: LocationEdito
             <div className="sticky top-0 z-10 flex items-center justify-between p-6 border-b border-white/5 bg-[#0a0a0a]/80 backdrop-blur-md">
               <h2 className="text-xl font-bold text-white">Редактирование локации</h2>
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 className="p-2 text-slate-400 transition-colors rounded-lg hover:bg-white/5 hover:text-white"
               >
                 <X className="w-5 h-5" />
               </button>
+            </div>
+            
+            {/* Autosave indicator */}
+            <div className="absolute top-6 left-1/2 -translate-x-1/2 px-3 py-1 bg-green-500/10 text-green-400 border border-green-500/20 rounded-full text-[10px] font-bold flex items-center gap-1.5 opacity-50">
+              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Автосохранение включено
             </div>
 
             <div className="p-6 space-y-8">
@@ -193,20 +212,22 @@ export function LocationEditorModal({ isOpen, onClose, location }: LocationEdito
               {/* Photos */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Фотографии</label>
-                  <button 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-orange-500 transition-colors rounded-lg bg-orange-500/10 hover:bg-orange-500/20"
-                  >
-                    <Upload className="w-3.5 h-3.5" /> Загрузить
-                  </button>
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    className="hidden" 
-                    ref={fileInputRef} 
-                    onChange={handleImageUpload}
-                  />
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Фотографии (Drag & Drop)</label>
+                </div>
+                
+                {/* Dropzone */}
+                <div 
+                  {...getRootProps()} 
+                  className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer ${
+                    isDragActive ? 'border-orange-500 bg-orange-500/10' : 'border-white/20 hover:bg-white/5 hover:border-white/40'
+                  }`}
+                >
+                  <input {...getInputProps()} />
+                  <Upload className={`w-8 h-8 mx-auto mb-3 ${isDragActive ? 'text-orange-500' : 'text-slate-500'}`} />
+                  <p className="text-sm font-medium text-slate-300">
+                    {isDragActive ? "Отпустите файлы здесь..." : "Перетащите фото сюда или кликните для выбора"}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">PNG, JPG до 2MB</p>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
@@ -232,12 +253,13 @@ export function LocationEditorModal({ isOpen, onClose, location }: LocationEdito
 
             </div>
 
-            <div className="sticky bottom-0 z-10 flex items-center justify-end p-6 border-t border-white/5 bg-[#0a0a0a]/80 backdrop-blur-md">
+            <div className="sticky bottom-0 z-10 flex items-center justify-between p-6 border-t border-white/5 bg-[#0a0a0a]/80 backdrop-blur-md">
+              <span className="text-xs text-slate-500 font-medium">Все изменения сохраняются автоматически</span>
               <button
-                onClick={handleSave}
+                onClick={handleClose}
                 className="flex items-center gap-2 px-6 py-3 font-bold text-black transition-all bg-white shadow-xl rounded-xl hover:bg-slate-200 shadow-white/10"
               >
-                <Save className="w-5 h-5" /> Сохранить изменения
+                <Save className="w-5 h-5" /> Готово
               </button>
             </div>
           </motion.div>

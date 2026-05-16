@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useOrbitaStore, Location, Booking } from "@/lib/store";
-import { MapPin, ArrowRight, X, Star, Users, Crosshair, Save } from "lucide-react";
+import { MapPin, ArrowRight, X, Star, Users, Crosshair, Save, Maximize2, Minimize2 } from "lucide-react";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
@@ -33,6 +33,7 @@ export default function MapPage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [tempCoords, setTempCoords] = useState<Record<string, {x: number, y: number}>>({});
   const [scale, setScale] = useState(1);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   
   const mapRef = useRef<HTMLDivElement>(null);
   const selectedLocData = locations.find(l => l.id === selectedLocation);
@@ -121,16 +122,19 @@ export default function MapPage() {
         )}
       </motion.header>
 
-      <div className="flex-1 flex flex-col lg:flex-row gap-6 relative min-h-0">
+      <div className={`flex flex-col lg:flex-row gap-6 relative min-h-0 ${isFullscreen ? 'fixed inset-0 z-50 bg-[#0A0A0A] p-6 lg:p-14' : 'flex-1'}`}>
         <motion.div
           ref={mapRef}
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           onClick={handleMapClick}
-          className={`flex-1 glass-panel rounded-[2.5rem] relative overflow-hidden bg-[#0A0A0A]/50 border-white/5 min-h-[500px] ${isEditMode ? 'cursor-crosshair ring-2 ring-cyan-500/50' : ''}`}
+          className={`glass-panel rounded-[2.5rem] relative overflow-hidden bg-[#0A0A0A]/50 border-white/5 min-h-[500px] ${isFullscreen ? 'w-full h-full' : 'flex-1'} ${isEditMode ? 'cursor-crosshair ring-2 ring-cyan-500/50' : ''}`}
         >
-          {/* Zoom controls */}
+          {/* Controls */}
           <div className="absolute bottom-6 right-6 z-20 flex flex-col gap-2">
+            <button onClick={() => setIsFullscreen(!isFullscreen)} className="w-10 h-10 bg-black/50 border border-white/10 rounded-xl flex items-center justify-center text-white backdrop-blur-md hover:bg-white/10 transition-colors mb-2">
+              {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+            </button>
             <button onClick={() => setScale(s => Math.min(s + 0.25, 2.5))} className="w-10 h-10 bg-black/50 border border-white/10 rounded-xl flex items-center justify-center text-white backdrop-blur-md hover:bg-white/10 transition-colors">+</button>
             <button onClick={() => setScale(s => Math.max(s - 0.25, 0.5))} className="w-10 h-10 bg-black/50 border border-white/10 rounded-xl flex items-center justify-center text-white backdrop-blur-md hover:bg-white/10 transition-colors">-</button>
           </div>
@@ -171,6 +175,7 @@ export default function MapPage() {
             const color = predefined?.color ?? getTypeColor(loc.type);
             const occupied = isOccupiedNow(loc.id);
             const statusIndicator = occupied ? 'bg-red-500' : 'bg-emerald-500';
+            const isSelected = selectedLocation === loc.id;
 
             return (
               <motion.div
