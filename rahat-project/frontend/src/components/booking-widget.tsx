@@ -30,9 +30,6 @@ export function BookingWidget({ locationId, pricePerHour, locationName }: Bookin
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSlots, setSelectedSlots] = useState<number[]>([]);
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [step, setStep] = useState<1 | 2>(1);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -91,28 +88,11 @@ export function BookingWidget({ locationId, pricePerHour, locationName }: Bookin
       `📍 Место: ${locationName || 'ORBITA'}\n` +
       `📅 Дата: ${dateString}\n` +
       `⏰ Время: ${timeString} (${selectedSlots.length} ч.)\n` +
-      `💰 Итого: ${settings.currency}${totalPrice.toLocaleString()}\n\n` +
-      `Меня зовут: ${customerName}\n` +
-      `Тел: ${customerPhone}`
+      `💰 Итого: ${settings.currency}${totalPrice.toLocaleString()}`
     );
-
-    // Save to local bookings store for history
-    addBooking({
-      id: Math.random().toString(36).substr(2, 9),
-      locationId,
-      date: format(selectedDate, 'yyyy-MM-dd'),
-      startHour: selectedSlots[0],
-      endHour: selectedSlots[selectedSlots.length - 1] + 1,
-      totalPrice,
-      status: 'PENDING',
-      createdAt: Date.now(),
-      customerName,
-      customerPhone
-    });
 
     const phone = settings.whatsappNumber.replace(/\D/g, '');
     window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
-    toast.success("Запрос отправлен в WhatsApp!");
   };
 
   if (!isMounted) {
@@ -132,15 +112,12 @@ export function BookingWidget({ locationId, pricePerHour, locationName }: Bookin
       </div>
 
       <div className="p-8">
-        <AnimatePresence mode="wait">
-          {step === 1 ? (
-            <motion.div
-              key="step1"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="space-y-8"
-            >
+        <motion.div
+          key="step1"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-8"
+        >
               {/* Календарь */}
               <div>
                 <div className="flex justify-between items-center mb-6">
@@ -223,78 +200,17 @@ export function BookingWidget({ locationId, pricePerHour, locationName }: Bookin
 
               <button
                 disabled={!selectedDate || selectedSlots.length === 0}
-                onClick={() => setStep(2)}
+                onClick={handleWhatsApp}
                 className={`w-full h-16 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all ${
                   selectedDate && selectedSlots.length > 0
-                    ? 'bg-white text-black hover:bg-slate-200 shadow-2xl shadow-white/5'
+                    ? 'bg-emerald-500 text-white hover:bg-emerald-400 shadow-xl shadow-emerald-500/20'
                     : 'bg-white/5 text-slate-600 cursor-not-allowed border border-white/5'
                 }`}
               >
-                Продолжить <ArrowRight className="w-5 h-5" />
+                <MessageCircle className="w-6 h-6" /> Написать в WhatsApp
               </button>
             </motion.div>
-          ) : (
-            <motion.div
-              key="step2"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-8"
-            >
-              <div className="space-y-6">
-                <h4 className="text-white font-bold text-xl">Ваши данные</h4>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Как к вам обращаться?</label>
-                    <input 
-                      type="text" 
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      placeholder="Имя"
-                      className="w-full h-14 bg-white/5 border border-white/10 rounded-2xl px-5 text-white outline-none focus:border-orange-500/50 transition-all"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Номер телефона</label>
-                    <input 
-                      type="tel" 
-                      value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value)}
-                      placeholder="+7"
-                      className="w-full h-14 bg-white/5 border border-white/10 rounded-2xl px-5 text-white outline-none focus:border-orange-500/50 transition-all"
-                    />
-                  </div>
-                </div>
-              </div>
 
-              <div className="p-6 rounded-2xl bg-white/5 border border-white/5 space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Выбрано часов:</span>
-                  <span className="text-white font-bold">{selectedSlots.length} ч.</span>
-                </div>
-                <div className="flex justify-between text-lg pt-2 border-t border-white/5">
-                  <span className="text-white font-bold">Итого к оплате:</span>
-                  <span className="text-orange-500 font-black">{settings.currency}{totalPrice.toLocaleString()}</span>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setStep(1)}
-                  className="flex-1 h-16 rounded-2xl font-bold border border-white/10 text-white hover:bg-white/5 transition-all"
-                >
-                  Назад
-                </button>
-                <button
-                  onClick={handleWhatsApp}
-                  className="flex-[2] h-16 rounded-2xl bg-emerald-600 text-white font-bold text-lg flex items-center justify-center gap-3 hover:bg-emerald-500 transition-all shadow-xl shadow-emerald-600/20"
-                >
-                  <MessageCircle className="w-6 h-6" /> Забронировать
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
 
       <div className="p-6 bg-white/5 border-t border-white/5 flex items-center gap-3">

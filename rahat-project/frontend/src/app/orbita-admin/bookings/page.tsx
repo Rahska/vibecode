@@ -2,7 +2,7 @@
 
 import { useOrbitaStore, Booking } from "@/lib/store";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, Calendar, Search, Filter, MoreVertical, Edit2, CheckCircle, XCircle, MessageCircle, Copy, Save, X } from "lucide-react";
+import { ChevronLeft, Calendar, Search, Filter, MoreVertical, Edit2, CheckCircle, XCircle, MessageCircle, Copy, Save, X, Plus } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -10,12 +10,18 @@ import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 
 export default function AdminBookings() {
-  const { bookings, locations, settings, updateBooking, isAdminLoggedIn } = useOrbitaStore();
+  const { bookings, locations, settings, updateBooking, addBooking, isAdminLoggedIn } = useOrbitaStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [editNotes, setEditNotes] = useState("");
   const [editPaymentStatus, setEditPaymentStatus] = useState<Booking['paymentStatus']>('UNPAID');
+
+  // Create Booking State
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newBooking, setNewBooking] = useState({
+    locationId: '', date: format(new Date(), 'yyyy-MM-dd'), startHour: 10, endHour: 12, customerName: '', customerPhone: '', deposit: '', totalPrice: 0
+  });
 
   if (!isAdminLoggedIn) {
     if (typeof window !== 'undefined') window.location.href = '/orbita-admin';
@@ -69,6 +75,36 @@ export default function AdminBookings() {
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
+  const handleCreateBooking = () => {
+    if (!newBooking.locationId || !newBooking.date || newBooking.startHour >= newBooking.endHour) {
+      toast.error("Проверьте правильность заполнения полей");
+      return;
+    }
+    const loc = locations.find(l => l.id === newBooking.locationId);
+    if (!loc) return;
+    
+    const price = (newBooking.endHour - newBooking.startHour) * loc.pricePerHour;
+    
+    addBooking({
+      id: Math.random().toString(36).substr(2, 9),
+      locationId: newBooking.locationId,
+      date: newBooking.date,
+      startHour: newBooking.startHour,
+      endHour: newBooking.endHour,
+      totalPrice: newBooking.totalPrice || price,
+      status: 'CONFIRMED',
+      paymentStatus: newBooking.deposit ? 'DEPOSIT_PAID' : 'UNPAID',
+      deposit: newBooking.deposit,
+      createdAt: Date.now(),
+      customerName: newBooking.customerName || 'Бронь админа',
+      customerPhone: newBooking.customerPhone || '',
+      notes: ''
+    });
+    
+    toast.success("Бронь создана");
+    setShowCreateModal(false);
+  };
+
   return (
     <div className="p-6 lg:p-14 w-full max-w-7xl mx-auto">
       <motion.header
@@ -82,6 +118,15 @@ export default function AdminBookings() {
           </Link>
           <h1 className="text-4xl font-bold text-white">Журнал бронирований</h1>
         </div>
+        <button 
+          onClick={() => {
+            setNewBooking(prev => ({ ...prev, locationId: locations[0]?.id || '' }));
+            setShowCreateModal(true);
+          }}
+          className="h-12 px-6 rounded-xl bg-orange-500 text-black font-bold flex items-center gap-2 hover:bg-orange-400 transition-colors"
+        >
+          <Plus className="w-5 h-5" /> Создать бронь
+        </button>
       </motion.header>
 
       <div className="glass-panel p-8 border-white/5 space-y-6">
@@ -270,6 +315,111 @@ export default function AdminBookings() {
                   className="w-full h-12 bg-white text-black font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors"
                 >
                   <Save className="w-4 h-4" /> Сохранить изменения
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Модальное окно создания брони */}
+      <AnimatePresence>
+        {showCreateModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowCreateModal(false)} />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative w-full max-w-lg p-6 glass-panel border border-white/10 rounded-2xl bg-[#0a0a0a]/90 max-h-[90vh] overflow-y-auto hide-scrollbar">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-white">Новая бронь</h3>
+                <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">Локация</label>
+                  <select 
+                    value={newBooking.locationId} 
+                    onChange={(e) => setNewBooking({...newBooking, locationId: e.target.value})}
+                    className="w-full h-12 px-4 bg-white/5 border border-white/10 rounded-xl text-white outline-none"
+                  >
+                    {locations.map(l => <option key={l.id} value={l.id} className="bg-[#111]">{l.name} ({settings.currency}{l.pricePerHour}/ч)</option>)}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="col-span-3 sm:col-span-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">Дата</label>
+                    <input 
+                      type="date" 
+                      value={newBooking.date} 
+                      onChange={(e) => setNewBooking({...newBooking, date: e.target.value})}
+                      className="w-full h-12 px-4 bg-white/5 border border-white/10 rounded-xl text-white outline-none [color-scheme:dark]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">С (Час)</label>
+                    <select 
+                      value={newBooking.startHour} 
+                      onChange={(e) => setNewBooking({...newBooking, startHour: Number(e.target.value)})}
+                      className="w-full h-12 px-4 bg-white/5 border border-white/10 rounded-xl text-white outline-none"
+                    >
+                      {Array.from({length: 15}, (_, i) => i + 9).map(h => <option key={h} value={h} className="bg-[#111]">{h}:00</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">По (Час)</label>
+                    <select 
+                      value={newBooking.endHour} 
+                      onChange={(e) => setNewBooking({...newBooking, endHour: Number(e.target.value)})}
+                      className="w-full h-12 px-4 bg-white/5 border border-white/10 rounded-xl text-white outline-none"
+                    >
+                      {Array.from({length: 15}, (_, i) => i + 10).map(h => <option key={h} value={h} className="bg-[#111]">{h}:00</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">Имя клиента</label>
+                    <input 
+                      type="text" placeholder="Имя"
+                      value={newBooking.customerName} onChange={(e) => setNewBooking({...newBooking, customerName: e.target.value})}
+                      className="w-full h-12 px-4 bg-white/5 border border-white/10 rounded-xl text-white outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">Телефон</label>
+                    <input 
+                      type="text" placeholder="+7..."
+                      value={newBooking.customerPhone} onChange={(e) => setNewBooking({...newBooking, customerPhone: e.target.value})}
+                      className="w-full h-12 px-4 bg-white/5 border border-white/10 rounded-xl text-white outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">Задаток (если есть)</label>
+                    <input 
+                      type="text" placeholder="Сумма задатка"
+                      value={newBooking.deposit} onChange={(e) => setNewBooking({...newBooking, deposit: e.target.value})}
+                      className="w-full h-12 px-4 bg-white/5 border border-white/10 rounded-xl text-white outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">Итоговая цена (своя)</label>
+                    <input 
+                      type="number" placeholder="Опционально"
+                      value={newBooking.totalPrice || ''} onChange={(e) => setNewBooking({...newBooking, totalPrice: Number(e.target.value)})}
+                      className="w-full h-12 px-4 bg-white/5 border border-white/10 rounded-xl text-white outline-none"
+                    />
+                  </div>
+                </div>
+
+                <button 
+                  onClick={handleCreateBooking}
+                  className="w-full h-12 bg-orange-500 text-black font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-orange-400 transition-colors mt-4"
+                >
+                  <Save className="w-4 h-4" /> Создать бронь
                 </button>
               </div>
             </motion.div>
