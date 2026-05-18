@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Shield, Lock, ArrowRight, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -10,8 +10,22 @@ import { toast } from "sonner";
 export default function LoginPage() {
   const [pin, setPin] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const router = useRouter();
   const { loginAdmin } = useOrbitaStore();
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center p-6 bg-[#0A0A0A]">
+        <div className="w-12 h-12 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

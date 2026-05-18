@@ -9,6 +9,17 @@ export async function POST(request: Request) {
     
     if (!file) return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
 
+    // Validate file type (must be an image)
+    if (!file.type.startsWith('image/')) {
+      return NextResponse.json({ error: "Только файлы изображений разрешены к загрузке" }, { status: 400 });
+    }
+
+    // Validate file size (max 5MB)
+    const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+    if (file.size > MAX_SIZE) {
+      return NextResponse.json({ error: "Размер файла превышает лимит 5МБ" }, { status: 400 });
+    }
+
     const adminSupabase = await createAdminClient();
     const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
     const filePath = `uploads/${guestId}/${fileName}`;

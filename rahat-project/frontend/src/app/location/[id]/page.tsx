@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight, Star, Users, MapPin, Heart, Send, Share2, Me
 import Link from "next/link";
 import { BookingWidget } from "@/components/booking-widget";
 import { toast } from "sonner";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 const TYPE_LABELS: Record<string, string> = {
   'YURT': 'Юрта', 'TAPCHAN': 'Тапчан', 'VIP': 'VIP',
@@ -22,6 +22,11 @@ export default function LocationDetails() {
     toggleFavorite, addReview, deleteReview, isAdminLoggedIn, settings
   } = useOrbitaStore();
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const location = locations.find(l => l.id === id);
   const reviews = (allReviews || []).filter(r => r.locationId === id);
 
@@ -33,6 +38,14 @@ export default function LocationDetails() {
   const [reviewPhotos, setReviewPhotos] = useState<string[]>([]);
   const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  if (!mounted) {
+    return (
+      <div className="p-4 md:p-6 lg:p-14 w-full flex items-center justify-center min-h-[60vh]">
+        <div className="w-12 h-12 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (!location) {
     return (

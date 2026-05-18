@@ -252,9 +252,21 @@ export const useOrbitaStore = create<OrbitaState>()(
         } catch (err) { console.error(err); }
       },
 
-      updateBooking: (id, updated) => set((state) => ({
-        bookings: state.bookings.map(b => b.id === id ? { ...b, ...updated } : b)
-      })),
+      updateBooking: async (id, updated) => {
+        set((state) => ({
+          bookings: state.bookings.map(b => b.id === id ? { ...b, ...updated } : b)
+        }));
+        try {
+          const res = await fetch(`/api/bookings/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updated),
+          });
+          if (!res.ok) throw new Error('Failed to update booking in Supabase');
+        } catch (err) {
+          console.error("Failed to sync booking update with Supabase:", err);
+        }
+      },
 
       cancelBooking: async (id) => {
         set((state) => ({

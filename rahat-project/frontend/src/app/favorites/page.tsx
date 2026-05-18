@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { Star, Users, Heart } from "lucide-react";
 import { toast } from "sonner";
+import { useState, useEffect } from "react";
 
 const TYPE_LABELS: Record<string, string> = {
   'YURT': 'Юрта', 'TAPCHAN': 'Тапчан', 'VIP': 'VIP',
@@ -12,8 +13,22 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export default function FavoritesPage() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const { locations, favorites, toggleFavorite, settings } = useOrbitaStore();
   const favoriteLocations = (locations || []).filter(loc => (favorites || []).includes(loc.id));
+
+  if (!mounted) {
+    return (
+      <div className="p-4 md:p-6 lg:p-14 w-full flex items-center justify-center min-h-[60vh]">
+        <div className="w-12 h-12 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -100,10 +115,24 @@ export default function FavoritesPage() {
                         <span className="text-xs text-slate-400">/ч</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 text-slate-400 text-sm">
+                    <div className="flex items-center gap-2 text-slate-400 text-sm mb-4">
                       <Users className="w-4 h-4 shrink-0" />
                       <span>До {loc.capacity} гостей</span>
                     </div>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const message = encodeURIComponent(`Здравствуйте! Хочу забронировать: ${loc.name}`);
+                        window.open(`https://wa.me/${settings?.whatsappNumber || '77001234567'}?text=${message}`, '_blank');
+                      }}
+                      className="w-full h-10 bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/20 hover:border-emerald-500 text-emerald-400 hover:text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all duration-300 group/btn hover:shadow-[0_0_15px_rgba(16,185,129,0.3)] mt-2"
+                    >
+                      <svg className="w-4 h-4 fill-current transition-transform group-hover/btn:scale-110" viewBox="0 0 24 24">
+                        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.963C16.588 2.019 14.12 1 11.999 1c-5.438 0-9.863 4.37-9.867 9.8-.001 1.767.469 3.5 1.359 5.022L2.483 20.31l4.164-1.156zM17.84 14.88c-.324-.162-1.92-.947-2.217-1.055-.298-.108-.515-.162-.73.162-.216.324-.836 1.055-1.025 1.27-.19.216-.379.243-.703.08-1.58-.79-2.735-1.37-3.826-2.296-.288-.244-.457-.546-.541-.87-.084-.324.237-.58.468-.813.12-.12.269-.324.378-.459.081-.108.135-.189.189-.324.054-.135.027-.243-.014-.324-.04-.081-.513-1.298-.703-1.758-.185-.445-.37-.384-.513-.391-.133-.007-.285-.007-.438-.007-.153 0-.405.057-.617.291-.212.234-.81.791-.81 1.929 0 1.137.828 2.239.941 2.392.113.153 1.63 2.49 3.95 3.493.552.239.983.381 1.32.488.555.176 1.06.151 1.46.091.446-.067 1.36-.554 1.55-1.088.19-.534.19-1.02.133-1.115-.057-.095-.213-.153-.538-.315z"/>
+                      </svg>
+                      <span>Написать в WhatsApp</span>
+                    </button>
                   </div>
                 </motion.div>
               </Link>

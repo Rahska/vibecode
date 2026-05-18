@@ -9,6 +9,7 @@ import { CommandMenu } from "@/components/command-menu";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 import { StoreHydration } from "@/components/store-provider";
 import { DataProvider } from "@/components/data-provider";
+import { WhatsAppFloatingButton } from "@/components/whatsapp-floating-button";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
@@ -54,6 +55,7 @@ export default function RootLayout({
             <MobileNav />
           </div>
           <CommandMenu />
+          <WhatsAppFloatingButton />
           <PWAInstallPrompt />
           <Toaster theme="dark" position="top-right" closeButton richColors />
           </DataProvider>

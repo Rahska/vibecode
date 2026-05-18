@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useOrbitaStore } from "@/lib/store";
 import { MapPin, ArrowRight, X, Star, Users, Crosshair, Save, Maximize2, Minimize2 } from "lucide-react";
 import Link from "next/link";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -27,6 +27,11 @@ const INITIAL_COORDS: Record<string, { x: number; y: number; color: string }> = 
 };
 
 export default function MapPage() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const { locations, isAdminLoggedIn, bookings } = useOrbitaStore();
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -36,6 +41,14 @@ export default function MapPage() {
 
   const mapRef = useRef<HTMLDivElement>(null);
   const selectedLocData = (locations || []).find(l => l.id === selectedLocation);
+
+  if (!mounted) {
+    return (
+      <div className="p-4 md:p-6 lg:p-14 w-full flex items-center justify-center min-h-[60vh]">
+        <div className="w-12 h-12 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   const isOccupiedNow = (locationId: string) => {
     const now = new Date();

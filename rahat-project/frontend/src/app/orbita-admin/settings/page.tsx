@@ -45,6 +45,11 @@ export default function AdminSettings() {
   };
 
   const [formData, setFormData] = useState<AppSettings>(cleanSettings(settings));
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Sync formData when Zustand rehydrates from localStorage
   useEffect(() => {
@@ -53,12 +58,12 @@ export default function AdminSettings() {
   }, [JSON.stringify(settings)]);
 
   useEffect(() => {
-    if (!isAdminLoggedIn) {
+    if (mounted && !isAdminLoggedIn) {
       router.replace('/orbita-admin');
     }
-  }, [isAdminLoggedIn, router]);
+  }, [isAdminLoggedIn, router, mounted]);
 
-  if (!isAdminLoggedIn) return null;
+  if (!mounted || !isAdminLoggedIn) return null;
 
   const handleSave = () => {
     updateSettings(formData);

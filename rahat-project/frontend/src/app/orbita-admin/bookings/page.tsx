@@ -25,13 +25,19 @@ export default function AdminBookings() {
     locationId: '', date: format(new Date(), 'yyyy-MM-dd'), startHour: 10, endHour: 12, customerName: '', customerPhone: '', deposit: '', totalPrice: 0
   });
 
+  const [mounted, setMounted] = useState(false);
+
   useEffect(() => {
-    if (!isAdminLoggedIn) {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && !isAdminLoggedIn) {
       router.replace('/orbita-admin');
     }
-  }, [isAdminLoggedIn, router]);
+  }, [isAdminLoggedIn, router, mounted]);
 
-  if (!isAdminLoggedIn) return null;
+  if (!mounted || !isAdminLoggedIn) return null;
 
   const handleStatusChange = (bookingId: string, newStatus: Booking['status']) => {
     updateBooking(bookingId, { status: newStatus });

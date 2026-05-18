@@ -75,12 +75,25 @@ export default function AdminPage() {
   const [pin, setPin] = useState("");
   const [editingLocation, setEditingLocation] = useState<Location | null>(null);
   const [pinError, setPinError] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    if (isAdminLoggedIn) {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && isAdminLoggedIn) {
       fetchAdminData();
     }
-  }, [isAdminLoggedIn, fetchAdminData]);
+  }, [isAdminLoggedIn, fetchAdminData, mounted]);
+
+  if (!mounted) {
+    return (
+      <div className="p-4 md:p-6 lg:p-14 w-full flex items-center justify-center min-h-[60vh] bg-[#0A0A0A]">
+        <div className="w-12 h-12 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
