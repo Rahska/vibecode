@@ -104,6 +104,7 @@ interface OrbitaState {
   setFavorites: (favorites: string[]) => void;
   setReviews: (reviews: Review[]) => void;
   setSettings: (settings: AppSettings) => void;
+  fetchAdminData: () => Promise<void>;
 }
 
 const INITIAL_LOCATIONS: Location[] = [
@@ -179,7 +180,9 @@ export const useOrbitaStore = create<OrbitaState>()(
       loginAdmin: (pin) => {
         if (pin === get().settings.adminPin) {
           set({ isAdminLoggedIn: true });
-          document.cookie = "orbita_admin_session=true; path=/; max-age=86400; SameSite=Lax";
+          // Set cookie for 30 days
+          const expiry = 30 * 24 * 60 * 60;
+          document.cookie = `orbita_admin_session=true; path=/; max-age=${expiry}; SameSite=Lax`;
           return true;
         }
         return false;
@@ -190,9 +193,30 @@ export const useOrbitaStore = create<OrbitaState>()(
         document.cookie = "orbita_admin_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
       },
 
-      updateSettings: (newSettings) => set((state) => ({
-        settings: { ...state.settings, ...newSettings }
-      })),
+      updateSettings: async (newSettings) => {
+        set((state) => ({
+          settings: { ...state.settings, ...newSettings }
+        }));
+        try {
+          const body: any = {};
+          if (newSettings.whatsappNumber !== undefined) body.whatsapp_number = newSettings.whatsappNumber;
+          if (newSettings.whatsappMessage !== undefined) body.whatsapp_message = newSettings.whatsappMessage;
+          if (newSettings.platformName !== undefined) body.platform_name = newSettings.platformName;
+          if (newSettings.address !== undefined) body.address = newSettings.address;
+          if (newSettings.workingHours !== undefined) body.working_hours = newSettings.workingHours;
+          if (newSettings.currency !== undefined) body.currency = newSettings.currency;
+          if (newSettings.adminPin !== undefined) body.admin_pin = newSettings.adminPin;
+
+          const res = await fetch('/api/admin/settings', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          if (!res.ok) throw new Error('Failed to update settings in Supabase');
+        } catch (err) {
+          console.error("Failed to sync settings with Supabase:", err);
+        }
+      },
 
       addLocation: (loc) => set((state) => ({ locations: [...state.locations, loc] })),
 
@@ -312,7 +336,30 @@ export const useOrbitaStore = create<OrbitaState>()(
       setBookings: (bookings) => set({ bookings }),
       setFavorites: (favorites) => set({ favorites }),
       setReviews: (reviews) => set({ reviews }),
-      setSettings: (settings) => set({ settings })
+      setSettings: (settings) => set({ settings }),
+      
+      fetchAdminData: async () => {
+        try {
+          const res = await fetch('/api/admin/bookings');
+          if (res.ok) {
+            const data = await res.json();
+            const mapped = data.map((b: any) => ({
+              ...b,
+              locationId: b.location_id,
+              startHour: b.start_hour,
+              endHour: b.end_hour,
+              totalPrice: b.total_price,
+              paymentStatus: b.payment_status,
+              customerName: b.customer_name,
+              customerPhone: b.customer_phone,
+              createdAt: new Date(b.created_at).getTime(),
+            }));
+            set({ bookings: mapped });
+          }
+        } catch (err) {
+          console.error("Failed to fetch admin data:", err);
+        }
+      }
     }),
     {
       name: 'orbita-storage-v2',

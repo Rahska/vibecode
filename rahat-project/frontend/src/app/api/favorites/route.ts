@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   const { data, error } = await supabase.from('favorites').select('location_id').eq('guest_id', guestId);
   
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data.map(f => f.location_id));
+  return NextResponse.json((data || []).map((f: any) => f.location_id));
 }
 
 export async function POST(request: Request) {

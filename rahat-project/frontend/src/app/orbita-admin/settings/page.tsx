@@ -22,7 +22,35 @@ export default function AdminSettings() {
   const { settings, updateSettings, isAdminLoggedIn } = useOrbitaStore();
   const router = useRouter();
 
-  const [formData, setFormData] = useState<AppSettings>(settings);
+  const SAFE_DEFAULTS: AppSettings = {
+    whatsappNumber: "",
+    whatsappMessage: "",
+    platformName: "",
+    address: "",
+    workingHours: "",
+    currency: "₸",
+    adminPin: "",
+  };
+
+  const cleanSettings = (s: Partial<AppSettings> | null | undefined): AppSettings => {
+    return {
+      whatsappNumber: s?.whatsappNumber || SAFE_DEFAULTS.whatsappNumber,
+      whatsappMessage: s?.whatsappMessage || SAFE_DEFAULTS.whatsappMessage,
+      platformName: s?.platformName || SAFE_DEFAULTS.platformName,
+      address: s?.address || SAFE_DEFAULTS.address,
+      workingHours: s?.workingHours || SAFE_DEFAULTS.workingHours,
+      currency: s?.currency || SAFE_DEFAULTS.currency,
+      adminPin: s?.adminPin || SAFE_DEFAULTS.adminPin,
+    };
+  };
+
+  const [formData, setFormData] = useState<AppSettings>(cleanSettings(settings));
+
+  // Sync formData when Zustand rehydrates from localStorage
+  useEffect(() => {
+    setFormData(cleanSettings(settings));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(settings)]);
 
   useEffect(() => {
     if (!isAdminLoggedIn) {
@@ -74,7 +102,7 @@ export default function AdminSettings() {
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Название базы</label>
               <input 
                 type="text" 
-                value={formData.platformName}
+                value={formData.platformName || ""}
                 onChange={(e) => handleChange('platformName', e.target.value)}
                 className="w-full h-14 bg-white/5 border border-white/10 rounded-xl px-4 text-white outline-none focus:border-orange-500/50 transition-all"
               />
@@ -85,7 +113,7 @@ export default function AdminSettings() {
                 <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                 <input 
                   type="text" 
-                  value={formData.address}
+                  value={formData.address || ""}
                   onChange={(e) => handleChange('address', e.target.value)}
                   className="w-full h-14 bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 text-white outline-none focus:border-orange-500/50 transition-all"
                 />
@@ -97,7 +125,7 @@ export default function AdminSettings() {
                 <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                 <input 
                   type="text" 
-                  value={formData.workingHours}
+                  value={formData.workingHours || ""}
                   onChange={(e) => handleChange('workingHours', e.target.value)}
                   className="w-full h-14 bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 text-white outline-none focus:border-orange-500/50 transition-all"
                 />
@@ -109,7 +137,7 @@ export default function AdminSettings() {
                 <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                 <input 
                   type="text" 
-                  value={formData.currency}
+                  value={formData.currency || ""}
                   onChange={(e) => handleChange('currency', e.target.value)}
                   className="w-full h-14 bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 text-white outline-none focus:border-orange-500/50 transition-all"
                 />
@@ -131,7 +159,7 @@ export default function AdminSettings() {
                 <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                 <input 
                   type="text" 
-                  value={formData.whatsappNumber}
+                  value={formData.whatsappNumber || ""}
                   onChange={(e) => handleChange('whatsappNumber', e.target.value.replace(/\D/g, ''))}
                   placeholder="77001234567"
                   className="w-full h-14 bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 text-white outline-none focus:border-orange-500/50 transition-all"
@@ -143,7 +171,7 @@ export default function AdminSettings() {
               <div className="relative">
                 <MessageSquare className="absolute left-4 top-4 w-4 h-4 text-slate-500" />
                 <textarea 
-                  value={formData.whatsappMessage}
+                  value={formData.whatsappMessage || ""}
                   onChange={(e) => handleChange('whatsappMessage', e.target.value)}
                   rows={4}
                   className="w-full bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 py-4 text-white outline-none focus:border-orange-500/50 transition-all resize-none"
@@ -164,7 +192,7 @@ export default function AdminSettings() {
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">PIN-код для входа в админку</label>
               <input 
                 type="text" 
-                value={formData.adminPin}
+                value={formData.adminPin || ""}
                 onChange={(e) => handleChange('adminPin', e.target.value.slice(0, 4))}
                 placeholder="7777"
                 className="w-full h-14 bg-white/5 border border-white/10 rounded-xl px-4 text-white outline-none focus:border-red-500/50 transition-all font-bold tracking-[1em]"

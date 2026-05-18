@@ -62,6 +62,7 @@ export default function AdminPage() {
     isAdminLoggedIn,
     loginAdmin,
     logoutAdmin,
+    fetchAdminData,
     locations,
     bookings,
     reviews,
@@ -74,6 +75,12 @@ export default function AdminPage() {
   const [pin, setPin] = useState("");
   const [editingLocation, setEditingLocation] = useState<Location | null>(null);
   const [pinError, setPinError] = useState(false);
+
+  useEffect(() => {
+    if (isAdminLoggedIn) {
+      fetchAdminData();
+    }
+  }, [isAdminLoggedIn, fetchAdminData]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();

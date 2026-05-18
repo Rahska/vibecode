@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { useOrbitaStore } from "@/lib/store";
-import { useAuthStore } from "@/lib/auth-store";
 import { createClient } from "@/lib/supabase/client";
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
@@ -49,13 +48,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (settingsRes.data) {
         const s = settingsRes.data;
         setSettings({
-          whatsappNumber: s.whatsapp_number,
-          whatsappMessage: s.whatsapp_message,
-          platformName: s.platform_name,
-          address: s.address,
-          workingHours: s.working_hours,
-          currency: s.currency,
-          adminPin: s.admin_pin,
+          whatsappNumber: s.whatsapp_number || "",
+          whatsappMessage: s.whatsapp_message || "",
+          platformName: s.platform_name || "",
+          address: s.address || "",
+          workingHours: s.working_hours || "",
+          currency: s.currency || "₸",
+          adminPin: s.admin_pin || "",
         });
       }
 

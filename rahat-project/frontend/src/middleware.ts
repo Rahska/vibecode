@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const isAdminPage = request.nextUrl.pathname.startsWith('/orbita-admin')
-  const isAdminLoggedIn = request.cookies.get('orbita_admin_session')?.value === 'true'
+  const sessionCookie = request.cookies.get('orbita_admin_session')
+  const isAdminLoggedIn = sessionCookie?.value === 'true'
 
   if (isAdminPage && !isAdminLoggedIn) {
     return NextResponse.redirect(new URL('/login', request.url))
