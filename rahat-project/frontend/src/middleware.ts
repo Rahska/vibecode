@@ -14,7 +14,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/orbita-admin/:path*',
-  ],
+  // Only admin routes — never match "/" or other public pages
+  matcher: ['/orbita-admin', '/orbita-admin/:path*'],
 }

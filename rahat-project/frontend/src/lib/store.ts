@@ -110,45 +110,45 @@ interface OrbitaState {
 const INITIAL_LOCATIONS: Location[] = [
   {
     id: '1',
-    name: 'Королевская юрта V1',
-    description: 'Ощутите подлинную роскошь в нашей премиальной Королевской юрте. Идеально подходит для корпоративных мероприятий и семейных торжеств.',
+    name: 'Королевская юрта',
+    description: 'Премиальная юрта с отоплением, Smart TV и Wi‑Fi. Подходит для семейных праздников до 10 человек.',
     type: 'YURT',
     pricePerHour: 15000,
     capacity: 10,
     rating: 4.9,
-    images: ['https://images.unsplash.com/photo-1518509562904-e7ef99cdcc86?q=80&w=1600'],
-    features: ['Wi-Fi', 'Отопление', 'Smart TV'],
+    images: ['https://images.unsplash.com/photo-1518509562904-e7ef99cdcc86?q=80&w=1600&auto=format&fit=crop'],
+    features: ['Wi‑Fi', 'Отопление', 'Smart TV', 'Чайная зона'],
     isActive: true,
     glowColor: 'glow-cyan',
-    x: 20, y: 30
+    x: 22, y: 32
   },
   {
     id: '2',
     name: 'Sky Lounge Тапчан',
-    description: 'Панорамные виды и премиальный сервис. Идеально для особых торжеств.',
+    description: 'VIP-зона с панорамным видом на горы, обслуживанием официанта и премиум-кальяном.',
     type: 'VIP',
     pricePerHour: 25000,
     capacity: 15,
     rating: 5.0,
-    images: ['https://images.unsplash.com/photo-1540541338287-41700207dee6?q=80&w=1600'],
-    features: ['Панорама', 'Официанты', 'Премиум кальян'],
+    images: ['https://images.unsplash.com/photo-1540541338287-41700207dee6?q=80&w=1600&auto=format&fit=crop'],
+    features: ['Панорама', 'Официант', 'Премиум кальян', 'Музыка'],
     isActive: true,
     glowColor: 'glow-blue',
-    x: 70, y: 40
+    x: 68, y: 38
   },
   {
     id: '3',
     name: 'Лесная беседка',
-    description: 'Погрузитесь в природу. Встроенный мангал и потрясающий лесной вид.',
+    description: 'Уютная беседка в тени деревьев с мангалом и видом на лесную поляну.',
     type: 'GAZEBO',
     pricePerHour: 8000,
     capacity: 8,
     rating: 4.7,
-    images: ['https://images.unsplash.com/photo-1499803270242-467f73115827?q=80&w=1600'],
-    features: ['Мангал', 'Вид на лес'],
+    images: ['https://images.unsplash.com/photo-1499803270242-467f73115827?q=80&w=1600&auto=format&fit=crop'],
+    features: ['Мангал', 'Стол на 8 персон', 'Освещение'],
     isActive: true,
     glowColor: 'glow-cyan',
-    x: 45, y: 70
+    x: 48, y: 72
   }
 ];
 
@@ -166,11 +166,11 @@ export const useOrbitaStore = create<OrbitaState>()(
       _hasHydrated: false,
       guestId: '',
       settings: {
-        whatsappNumber: '77001234567',
+        whatsappNumber: '77071234567',
         whatsappMessage: 'Здравствуйте! Хочу забронировать место в ОРБИТА.',
         platformName: 'ОРБИТА',
-        address: 'г. Алматы, Горный гигант, 42',
-        workingHours: '10:00 - 23:00',
+        address: 'г. Алматы, Кульджинский тракт, 42',
+        workingHours: '10:00 — 23:00',
         currency: '₸',
         adminPin: '7777'
       },
@@ -218,15 +218,51 @@ export const useOrbitaStore = create<OrbitaState>()(
         }
       },
 
-      addLocation: (loc) => set((state) => ({ locations: [...state.locations, loc] })),
+      addLocation: async (loc) => {
+        set((state) => ({ locations: [...state.locations, loc] }));
+        try {
+          const res = await fetch('/api/locations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(loc),
+          });
+          if (res.ok) {
+            const saved = await res.json();
+            set((state) => ({
+              locations: state.locations.map((l) => (l.id === loc.id ? saved : l)),
+            }));
+          }
+        } catch (err) {
+          console.error('Failed to sync new location:', err);
+        }
+      },
 
-      updateLocation: (id, updated) => set((state) => ({
-        locations: state.locations.map(l => l.id === id ? { ...l, ...updated } : l)
-      })),
+      updateLocation: async (id, updated) => {
+        set((state) => ({
+          locations: state.locations.map(l => l.id === id ? { ...l, ...updated } : l)
+        }));
+        try {
+          const res = await fetch(`/api/locations/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updated),
+          });
+          if (!res.ok) throw new Error('Failed to update location');
+        } catch (err) {
+          console.error('Failed to sync location update:', err);
+        }
+      },
 
-      deleteLocation: (id) => set((state) => ({
-        locations: state.locations.filter(l => l.id !== id)
-      })),
+      deleteLocation: async (id) => {
+        set((state) => ({
+          locations: state.locations.filter(l => l.id !== id)
+        }));
+        try {
+          await fetch(`/api/locations/${id}`, { method: 'DELETE' });
+        } catch (err) {
+          console.error('Failed to sync location delete:', err);
+        }
+      },
 
       addBooking: async (booking) => {
         const { guestId } = get();

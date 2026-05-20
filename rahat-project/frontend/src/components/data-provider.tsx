@@ -3,6 +3,25 @@
 import { useEffect } from "react";
 import { useOrbitaStore } from "@/lib/store";
 import { createClient } from "@/lib/supabase/client";
+import { locationFromDb } from "@/lib/location-mapper";
+
+function mapBookingRow(b: Record<string, unknown>) {
+  return {
+    id: String(b.id),
+    locationId: String(b.location_id),
+    date: String(b.date),
+    startHour: Number(b.start_hour),
+    endHour: Number(b.end_hour),
+    totalPrice: Number(b.total_price),
+    deposit: b.deposit as string | undefined,
+    paymentStatus: b.payment_status as 'UNPAID' | 'DEPOSIT_PAID' | 'FULLY_PAID' | undefined,
+    notes: b.notes as string | undefined,
+    status: b.status as 'CONFIRMED' | 'CANCELLED' | 'PENDING' | 'COMPLETED',
+    customerName: String(b.customer_name ?? ''),
+    customerPhone: String(b.customer_phone ?? ''),
+    createdAt: b.created_at ? new Date(String(b.created_at)).getTime() : Date.now(),
+  };
+}
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const { 
@@ -11,107 +30,118 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setBookings, 
     setReviews, 
     setFavorites,
-    setHasHydrated,
+    _hasHydrated,
     guestId,
-    _hasHydrated
   } = useOrbitaStore();
 
   useEffect(() => {
     if (!_hasHydrated) return;
 
-    // 1. Initialize Guest ID if missing
     if (!guestId) {
-      const newId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      const newId = crypto.randomUUID?.() ?? (
+        Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+      );
       useOrbitaStore.setState({ guestId: newId });
     }
+  }, [_hasHydrated, guestId]);
 
-    // 2. Fetch Initial Public Data
+  useEffect(() => {
+    if (!_hasHydrated) return;
+
     const fetchPublicData = async () => {
       const supabase = createClient();
-      
-      const [locationsRes, settingsRes, reviewsRes] = await Promise.all([
-        supabase.from('locations').select('*').order('created_at'),
-        supabase.from('settings').select('*').single(),
-        supabase.from('reviews').select('*').order('created_at', { ascending: false })
-      ]);
+      const hasSupabase = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL);
 
-      if (locationsRes.data) {
-        const mapped = locationsRes.data.map((loc: any) => ({
-          ...loc,
-          pricePerHour: loc.price_per_hour,
-          isActive: loc.is_active,
-          glowColor: loc.glow_color,
-        }));
-        setLocations(mapped);
-      }
+      if (hasSupabase) {
+        const [locationsRes, settingsRes, reviewsRes] = await Promise.all([
+          supabase.from('locations').select('*').order('created_at'),
+          supabase.from('settings').select('*').single(),
+          supabase.from('reviews').select('*').order('created_at', { ascending: false }),
+        ]);
 
-      if (settingsRes.data) {
-        const s = settingsRes.data;
-        setSettings({
-          whatsappNumber: s.whatsapp_number || "",
-          whatsappMessage: s.whatsapp_message || "",
-          platformName: s.platform_name || "",
-          address: s.address || "",
-          workingHours: s.working_hours || "",
-          currency: s.currency || "₸",
-          adminPin: s.admin_pin || "",
-        });
-      }
+        if (locationsRes.data?.length) {
+          setLocations(locationsRes.data.map((row: Record<string, unknown>) => locationFromDb(row)));
+        }
 
-      if (reviewsRes.data) {
-        const mapped = reviewsRes.data.map((r: any) => ({
-          ...r,
-          locationId: r.location_id,
-          date: new Date(r.created_at).toLocaleDateString(),
-        }));
-        setReviews(mapped);
+        if (settingsRes.data) {
+          const s = settingsRes.data;
+          setSettings({
+            whatsappNumber: s.whatsapp_number || "",
+            whatsappMessage: s.whatsapp_message || "",
+            platformName: s.platform_name || "",
+            address: s.address || "",
+            workingHours: s.working_hours || "",
+            currency: s.currency || "₸",
+            adminPin: s.admin_pin || "",
+          });
+        }
+
+        if (reviewsRes.data) {
+          setReviews(
+            reviewsRes.data.map((r: Record<string, unknown>) => ({
+              id: String(r.id),
+              locationId: String(r.location_id),
+              author: String(r.author),
+              rating: Number(r.rating),
+              text: String(r.text),
+              date: r.created_at
+                ? new Date(String(r.created_at)).toLocaleDateString('ru-RU')
+                : new Date().toLocaleDateString('ru-RU'),
+              photos: r.photos as string[] | undefined,
+            }))
+          );
+        }
+      } else {
+        try {
+          const res = await fetch('/api/locations');
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data) && data.length > 0) setLocations(data);
+          }
+        } catch {
+          /* offline demo uses zustand seed data */
+        }
       }
     };
 
     fetchPublicData();
-  }, [_hasHydrated, guestId, setLocations, setSettings, setReviews]);
+  }, [_hasHydrated, setLocations, setSettings, setReviews]);
 
   useEffect(() => {
     if (!_hasHydrated || !guestId) return;
 
-    // 3. Fetch Guest Specific Data
     const fetchGuestData = async () => {
-      const supabase = createClient();
-      
-      const [bookingsRes, favoritesRes] = await Promise.all([
-        supabase.from('bookings').select('*').eq('guest_id', guestId).order('date', { ascending: false }),
-        supabase.from('favorites').select('location_id').eq('guest_id', guestId)
-      ]);
+      try {
+        const [bookingsRes, favoritesRes] = await Promise.all([
+          fetch(`/api/bookings?guestId=${encodeURIComponent(guestId)}`),
+          fetch(`/api/favorites?guestId=${encodeURIComponent(guestId)}`),
+        ]);
 
-      if (bookingsRes.data) {
-        const mapped = bookingsRes.data.map((b: any) => ({
-          ...b,
-          locationId: b.location_id,
-          startHour: b.start_hour,
-          endHour: b.end_hour,
-          totalPrice: b.total_price,
-          paymentStatus: b.payment_status,
-          customerName: b.customer_name,
-          customerPhone: b.customer_phone,
-          createdAt: new Date(b.created_at).getTime(),
-        }));
-        setBookings(mapped);
+        if (bookingsRes.ok) {
+          const data = await bookingsRes.json();
+          if (Array.isArray(data)) setBookings(data.map(mapBookingRow));
+        }
+
+        if (favoritesRes.ok) {
+          const ids = await favoritesRes.json();
+          if (Array.isArray(ids)) setFavorites(ids.map(String));
+        }
+      } catch (err) {
+        console.error('Failed to load guest data:', err);
       }
-      if (favoritesRes.data) setFavorites(favoritesRes.data.map((f: any) => f.location_id));
     };
 
     fetchGuestData();
 
-    // 4. Set up Real-time for guest bookings
     const supabase = createClient();
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return;
+
     const channel = supabase
       .channel(`guest_bookings_${guestId}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'bookings', filter: `guest_id=eq.${guestId}` },
-        () => {
-          fetchGuestData();
-        }
+        () => fetchGuestData()
       )
       .subscribe();
 

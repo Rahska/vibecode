@@ -1,13 +1,14 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/api-auth";
+import { locationFromDb, locationToDbPayload } from "@/lib/location-mapper";
 
 export async function GET() {
   const supabase = await createClient();
   const { data, error } = await supabase.from('locations').select('*').order('created_at');
   
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  return NextResponse.json((data ?? []).map((row: Record<string, unknown>) => locationFromDb(row)));
 }
 
 export async function POST(request: Request) {
@@ -16,9 +17,10 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
+  const payload = locationToDbPayload(body);
   const adminSupabase = await createAdminClient();
-  const { data, error } = await adminSupabase.from('locations').insert(body).select().single();
+  const { data, error } = await adminSupabase.from('locations').insert(payload).select().single();
   
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  return NextResponse.json(locationFromDb(data));
 }

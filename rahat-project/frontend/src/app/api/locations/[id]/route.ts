@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/api-auth";
+import { locationFromDb, locationToDbPayload } from "@/lib/location-mapper";
 
 export async function PATCH(
   request: Request,
@@ -12,11 +13,12 @@ export async function PATCH(
   }
 
   const body = await request.json();
+  const payload = locationToDbPayload(body);
   const adminSupabase = await createAdminClient();
-  const { data, error } = await adminSupabase.from('locations').update(body).eq('id', id).select().single();
+  const { data, error } = await adminSupabase.from('locations').update(payload).eq('id', id).select().single();
   
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  return NextResponse.json(locationFromDb(data));
 }
 
 export async function DELETE(

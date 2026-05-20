@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ОРБИТА (ORBITA) — Premium leisure booking
 
-## Getting Started
+Next.js 16 App Router application for browsing locations, WhatsApp booking requests, favorites, reviews, and an admin panel.
 
-First, run the development server:
+## Quick start (demo mode, no database)
 
 ```bash
+cd rahat-project/frontend
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Admin PIN:** `7777` → `/login` or `/orbita-admin`
+- Data is stored in **localStorage** (Zustand persist) when Supabase is not configured.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Production setup (Supabase)
 
-## Learn More
+1. Create a [Supabase](https://supabase.com) project.
+2. Run `SUPABASE_SETUP.sql` in the SQL editor.
+3. Copy `env.example` → `.env.local` and fill in:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY` (server only; required for bookings, favorites, uploads, admin writes)
+4. In Netlify: add the same variables under **Site settings → Environment variables**.
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run build
+npm start
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deploy on Netlify
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Repository root contains `netlify.toml`:
 
-## Deploy on Vercel
+- Base directory: `rahat-project/frontend`
+- Plugin: `@netlify/plugin-nextjs` (must be in `dependencies`, not only devDependencies)
+- Node 20
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**Important (fixes Netlify 404 on `/`):**
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. In Netlify UI → **Site configuration → Build & deploy → Build settings**, set **Base directory** to `rahat-project/frontend` (or rely on `netlify.toml`).
+2. **Clear "Publish directory"** — leave it empty. Do not use `.next` or `public` manually.
+3. Redeploy after pushing these changes.
+
+Push to Git and connect the repo in Netlify. Set Supabase env vars before the first production deploy.
+
+## Architecture
+
+| Layer | Technology |
+|-------|------------|
+| Frontend | Next.js 16, React 19, Tailwind 4, Zustand |
+| API | App Router route handlers (`/api/*`) |
+| Database | Supabase (PostgreSQL) |
+| Auth | Admin: PIN + cookie `orbita_admin_session`; guests: anonymous `guestId` |
+| Storage | Supabase bucket `orbita-images` |
+
+There is **no** separate Express backend; `rahat-project/backend` is unused. `docker-compose.yml` runs Postgres/Redis but the app does not connect to them.
+
+## Routes
+
+| Path | Description |
+|------|-------------|
+| `/` | Location catalog |
+| `/map` | Interactive map |
+| `/location/[id]` | Details, booking widget, reviews |
+| `/favorites` | Saved locations |
+| `/login` | Admin PIN login |
+| `/orbita-admin` | Dashboard |
+| `/orbita-admin/bookings` | Booking management |
+| `/orbita-admin/settings` | Platform settings |
+
+## Scripts
+
+- `npm run dev` — development server
+- `npm run build` — production build
+- `npm run start` — production server
+- `npm run lint` — ESLint

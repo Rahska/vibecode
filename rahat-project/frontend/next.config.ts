@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Netlify OpenNext runtime requires SSR — never use output: 'export'
+  trailingSlash: false,
+  poweredByHeader: false,
 };
 
 export default nextConfig;

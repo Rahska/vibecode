@@ -18,7 +18,9 @@ import {
   Star,
   LogOut
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { format, subDays, startOfDay } from "date-fns";
+import { ru } from "date-fns/locale";
 import { toast } from "sonner";
 import {
   BarChart,
@@ -35,16 +37,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LocationEditorModal } from "@/components/admin/location-editor-modal";
 import { Location } from "@/lib/store";
-
-const chartData = [
-  { name: 'Пн', bookings: 12, revenue: 180000 },
-  { name: 'Вт', bookings: 19, revenue: 240000 },
-  { name: 'Ср', bookings: 15, revenue: 210000 },
-  { name: 'Чт', bookings: 22, revenue: 320000 },
-  { name: 'Пт', bookings: 30, revenue: 450000 },
-  { name: 'Сб', bookings: 45, revenue: 720000 },
-  { name: 'Вс', bookings: 38, revenue: 580000 },
-];
 
 function formatRevenue(value: number, currency: string): string {
   if (value >= 1_000_000) {
@@ -86,6 +78,27 @@ export default function AdminPage() {
       fetchAdminData();
     }
   }, [isAdminLoggedIn, fetchAdminData, mounted]);
+
+  const chartData = useMemo(() => {
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const d = startOfDay(subDays(new Date(), 6 - i));
+      return {
+        key: format(d, 'yyyy-MM-dd'),
+        name: format(d, 'EEE', { locale: ru }).replace(/^./, (c) => c.toUpperCase()),
+      };
+    });
+
+    return days.map(({ key, name }) => {
+      const dayBookings = (bookings || []).filter(
+        (b) => b.date === key && b.status !== 'CANCELLED'
+      );
+      return {
+        name,
+        bookings: dayBookings.length,
+        revenue: dayBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0),
+      };
+    });
+  }, [bookings]);
 
   if (!mounted) {
     return (
