@@ -1,14 +1,13 @@
-# Repository root — monorepo: Next.js app lives in rahat-project/frontend
+# Monorepo: Next app in rahat-project/frontend
+# - Do NOT set `publish` (not .next, not public). The Next plugin sets deploy output.
+# - Netlify UI: Base directory empty OR rahat-project/frontend; Publish directory MUST be empty.
 [build]
   base = "rahat-project/frontend"
   command = "npm ci && npm run build"
-  # Do NOT set `publish` here. @netlify/plugin-nextjs configures the deploy output.
-  # In Netlify UI → Site settings → Build: clear "Publish directory" (leave empty).
 
 [build.environment]
   NODE_VERSION = "20"
   NPM_CONFIG_PRODUCTION = "false"
-  NETLIFY_NEXT_PLUGIN_SKIP = "false"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"

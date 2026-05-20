@@ -1,8 +1,8 @@
 import { HomePage } from "@/components/home-page";
 
-/** Pre-render home at build time so Netlify/CDN always serves "/" */
+/** Pre-render "/" at build time (static HTML in .next/server/app) */
 export const dynamic = "force-static";
 
-export default function Page() {
+export default function Home() {
   return <HomePage />;
 }
